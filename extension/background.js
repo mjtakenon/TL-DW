@@ -2,7 +2,7 @@
 
 // ファイルからAppIdを取得
 async function getAppId() {
-  var filename = "yahooAppId.txt";
+  const filename = "yahooAppId.txt";
   return new Promise(function(resolve) {
     var xhr = new XMLHttpRequest()
     xhr.open('GET', chrome.extension.getURL(filename), true)
@@ -31,22 +31,28 @@ async function getKeyword(appId,str) {
 }
 
 // タグを生成
-async function getTags(str){
+async function getTags(tab, str){
   // appId取得
   appId = await getAppId()
   // キーワード取得
   res = await getKeyword(appId,str)
-  console.log(JSON.parse(res.responseText))
+  res = JSON.parse(res.responseText)
+  console.log(res)
   // タグを表示
-  chrome.tabs.executeScript({
-    file: "showTags.js",
+  chrome.tabs.executeScript(tab.id, {
+    code: 'let res = '+JSON.stringify(res)
+  }, () => {
+    chrome.tabs.executeScript(tab.id, {
+      file: "showTags.js",
+    })
   })
 }
 
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
-  str = "";
-  getTags(str)
+  // dammy data
+  const str = "桃から生まれたポテト侍";
+  getTags(tab, str)
   
   return;
 })
