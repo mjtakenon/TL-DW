@@ -1,2 +1,3 @@
 extension/yahooAppId.txt
-.vscode/*
+.vscode/
+backend/

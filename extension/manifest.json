@@ -5,11 +5,9 @@
   "permissions": [
     "activeTab",
     "https://*/*"
-    // "*://jlp.yahooapis.jp/*",
-    // "*://www.youtube.com/*"
   ],
   "background": {
-    "scripts": ["background.js"],
+    "scripts": ["background.js", "hot-reload.js"],
     "persistent": false
   },
   // 必要?
