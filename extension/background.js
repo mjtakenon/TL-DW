@@ -136,22 +136,29 @@ async function getToken(code, client_id, client_secret, redirect_uri) {
 }
 
 // Youtubeから字幕IDを取得
-// async function getYoutubeSubtitleID(video_id,api_key) {
-//   return new Promise(function(resolve) {
-//     let xhr = new XMLHttpRequest()
+async function getYoutubeSubtitleID(video_id,api_key) {
+  return new Promise(function(resolve) {
+    let xhr = new XMLHttpRequest()
     
-//     xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId='+video_id+'&key='+api_key, true)
-//     xhr.setRequestHeader('Authorization', ' Bearer '+access_token)
-//     xhr.send(encodeHTMLForm())
-//     xhr.onreadystatechange = function() {
-//       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
-//         parsedText = JSON.parse(xhr.responseText)
-//         resolve(parsedText)
-//       }
-//     }
-//   })
-// }
-
+    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId='+video_id+'&key='+api_key, true)
+    xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
+    xhr.send(encodeHTMLForm())
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        parsedText = JSON.parse(xhr.responseText)
+        console.log(parsedText)
+        for(let itr of Object.keys(parsedText["items"])) {
+          // 日本語の字幕があれば返す
+          if(parsedText["items"][itr]["snippet"]["language"] === "ja") {
+            resolve(parsedText["items"][itr]["id"])
+          }
+        }
+        // 無ければ処理を行わない
+        resolve(false)
+      }
+    }
+  })
+}
 
 // Youtubeから字幕を取得
 async function getYoutubeData(movie_subtitle_id,api_key,access_token) {
@@ -177,14 +184,14 @@ async function getSubtitles() {
   const client_id = await readFile("key/client_id.txt")
   const client_secret = await readFile("key/client_secret.txt")
   // chromeアプリのIDを利用
-  const redirect_uri =  "https://kiahobelgfhachbmpbmkijpgokajlnii.chromiumapp.org"
+  const redirect_uri = "https://lopgmmlmjfellhcdgdbjpdflolgffkei.chromiumapp.org"
   // 許可するスコープ
   const scope = "https://www.googleapis.com/auth/youtube.force-ssl"
 
   // APIキー
   const api_key = await readFile("key/youtube_api_key.txt")
   // コードを取得
-  code = await getCode(client_id,redirect_uri,scope)
+  code = await getCode(client_id, redirect_uri, scope)
   // トークンを取得
   token = await getToken(code, client_id, client_secret, redirect_uri)
   const access_token = token["access_token"]
@@ -192,17 +199,24 @@ async function getSubtitles() {
   
   // 動画の字幕ID
   // TODO 動画IDからとってくる
-  const movie_subtitle_id = "komlN6nBKlVbB0bbjq91B732UFPCGu9yBNgwx4sm8gg="
-  // const movie_subtitle_id = await getYoutubeSubtitleID(video_id,api_key)
-  let subTitleElements = await getYoutubeData(movie_subtitle_id,api_key,access_token)
+  // const movie_subtitle_id = "komlN6nBKlVbB0bbjq91B732UFPCGu9yBNgwx4sm8gg="
+  const video_id = "iRi4od_Thus"
+  const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
+  if (movie_subtitle_id === false) { 
+    console.log("日本語の字幕は取得できませんでした.")
+    return
+  } else {
+    console.log(movie_subtitle_id)
+  }
+  let subTitleElements = await getYoutubeData(movie_subtitle_id, api_key, access_token)
   subTitleElements = subTitleElements.getElementsByTagName("p")
   var subTitleList = []
   for(let itr of Object.keys(subTitleElements)) {
     outerHTML = subTitleElements[itr].outerHTML
     l = []
     l.push(subTitleElements[itr].innerHTML)
-    l.push(outerHTML.substring(outerHTML.indexOf("begin")+7,outerHTML.indexOf("begin")+19))
-    l.push(outerHTML.substring(outerHTML.indexOf("end")+5,outerHTML.indexOf("end")+17))
+    l.push(outerHTML.substring(outerHTML.indexOf("begin")+7, outerHTML.indexOf("begin")+19))
+    l.push(outerHTML.substring(outerHTML.indexOf("end")+5, outerHTML.indexOf("end")+17))
     subTitleList.push(l)
   }
   console.log(subTitleList)
