@@ -4,7 +4,8 @@
   "version": "0.1",
   "permissions": [
     "activeTab",
-    "https://*/*"
+    "https://*/*",
+    "identity"
   ],
   "background": {
     "scripts": ["background.js", "hot-reload.js"],
