@@ -177,10 +177,17 @@ async function getYoutubeData(movie_subtitle_id,api_key,access_token) {
   })
 }
 
+// URLを取得
+async function getCurrentURL() {
+  return new Promise(function(resolve) {
+    chrome.tabs.getSelected(null, function(tab) { resolve(tab.url) })
+  })
+}
+
+
 // 動画字幕を取得
 async function getSubtitles() {
   // https://console.developers.google.com にて生成
-  // TODO ファイルから読み込み?
   const client_id = await readFile("key/client_id.txt")
   const client_secret = await readFile("key/client_secret.txt")
   // chromeアプリのIDを利用
@@ -198,16 +205,20 @@ async function getSubtitles() {
   const refresh_token = token["refresh_token"]
   
   // 動画の字幕ID
-  // TODO 動画IDからとってくる
-  // const movie_subtitle_id = "komlN6nBKlVbB0bbjq91B732UFPCGu9yBNgwx4sm8gg="
-  const video_id = "iRi4od_Thus"
+  let video_url = await getCurrentURL()
+  let video_id = ""
+  if (video_url.indexOf("&") === -1) {
+    video_id = video_url.substring(video_url.indexOf("v=")+2)
+  } else {
+    video_id = video_url.substring(video_url.indexOf("v=")+2, video_url.indexOf("&"))
+  }
   const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
   if (movie_subtitle_id === false) { 
     console.log("日本語の字幕は取得できませんでした.")
     return
-  } else {
-    console.log(movie_subtitle_id)
   }
+  // ここで403エラーが発生する場合、その動画がサードパーティーの字幕投稿を許可していないかららしい
+  // https://stackoverflow.com/questions/30653865/downloading-captions-always-returns-a-403
   let subTitleElements = await getYoutubeData(movie_subtitle_id, api_key, access_token)
   subTitleElements = subTitleElements.getElementsByTagName("p")
   var subTitleList = []
