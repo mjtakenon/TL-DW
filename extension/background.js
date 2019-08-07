@@ -84,10 +84,8 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
-
-
 // タグを生成
-async function getTags(tab, str){
+async function showTags(tab, str){
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
   // キーワード取得
@@ -329,8 +327,8 @@ async function getSubtitles(api_key) {
   return subTitleList
 }
 
-async function getComment() {
-
+async function getLiveChat() {
+  "https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet&liveChatId=razqq6dAieE&t=6s"
 }
 
 async function main() {
@@ -345,10 +343,13 @@ async function main() {
   // APIキー
   const api_key = await readFile("key/youtube_api_key.txt")
 
+  // 認証
   if (await googleIdenfity(client_id, client_secret, redirect_uri, scope) === null) {
     console.error("認証に失敗しました")
     return null
   }
+  
+  // 字幕取得
   let subTitleList = await getSubtitles(api_key)
   if (subTitleList === null) {
     console.error("字幕の取得に失敗しました.")
@@ -360,23 +361,44 @@ async function main() {
   }
   console.log(subTitle)
 
-  let commentList = await getComment()
+  // Youtube Live Chat 取得
+  let liveChatList = await getLiveChat()
 }
 // 
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
   // この関数をawaitにできないのでこれで代用
-  main()
+  // main()
+  str = "桃から生まれたポテト侍"
+  showTags(tab, str)
   return;
 })
 
 // バグあり 既存のタグを消してしまう
 // このコードがない場合ページ遷移をしても追加されたタグが消えない
-// chrome.tabs.onUpdated.addListener(function(tabid, info, tab){
-//   console.log("chrome.tabs.onUpdated")
-//   chrome.tabs.executeScript({
-//     file: "clearTags.js"
-//   })
-//   // info.url
-//   // tab.url
-// })
+chrome.tabs.onUpdated.addListener(function(tabid, info, tab){
+  console.log("chrome.tabs.onUpdated")
+  if (info["status"] === "loading") {
+    // console.log(info)
+    // chrome.tabs.executeScript(tab.id, {
+    //   code: 'let status = ' + info["status"]
+    // }, () => {
+    //   chrome.tabs.executeScript({
+    //     file: "clearTags.js"
+    //   })
+    // })
+  } else if (info["status"] === "complete") {
+    // console.log(info)
+    // chrome.tabs.executeScript(tab.id, {
+    //   code: 'let status = ' + info["status"]
+    // }, () => {
+    //   chrome.tabs.executeScript({
+    //     file: "saveTags.js"
+    //   })
+    // })
+  } else {
+    return
+  }
+  // info.url
+  // tab.url
+})

@@ -3,20 +3,18 @@
   "description": "a extention for getting words from Youtube videos",
   "version": "0.1",
   "permissions": [
+    "https://www.youtube.com/*",
     "activeTab",
-    "https://*/*",
     "identity"
   ],
   "background": {
     "scripts": ["background.js", "hot-reload.js"],
     "persistent": false
   },
-  // 必要?
   "content_scripts": [
     {
-      // "matches": [ "https://www.youtube.com/*" ],
       "matches": [ "https://*/*" ],
-      "js": [ "background.js" , "clearTags.js", "showTags.js"]
+      "js": ["background.js", "clearTags.js", "showTags.js", "saveTags.js"]
     }
   ],
   "browser_action": {
