@@ -60,35 +60,41 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
-function toCountDict(array){
+function toCountDict(array,W){
   let dict = {};
   for(let key of array){
-      dict[key] = array.filter(function(x){return x==key}).length;
+      dict[key] = W * array.filter(function(x){return x==key}).length;
   }
   return dict;
 }
-// var ngram = function(words, n) {
-//   var i;
-//   var grams = [];
-
-//   for(i = 0; i <= words.length-n; i++) {
-//     grams.push(words.substr(i, n).toLowerCase());
-//   }
-//   return grams;
-// }
-var ngram = function(list, n) {
+var ngram = function(array, n) {
   var i;
   var grams = [];
-  for(i = 0; i <= list.length-n; i++) {
-    var n_text = list[i];
+  for(i = 0; i <= array.length-n; i++) {
+    var n_text = array[i];
     for (j = 1; j < n; j++){
-      n_text += list[i + j]
+      n_text += array[i + j]
     }
     grams.push(n_text)
   }
   return grams;
 }
-
+var ngram_exception_words = function(array,ex_word, n) {
+  var i;
+  var grams = [];
+  for(i = 0; i <= array.length-n; i++) {
+    var n_text = array[i];
+    if (ex_word.indexOf(array[i]) >= 0 || ex_word.indexOf(array[i + n - 1]) >= 0){
+      continue
+    }else{
+      for (j = 1; j < n; j++){
+        n_text += array[i + j]
+      }
+    }
+    grams.push(n_text)
+  }
+  return grams;
+}
 // タグを生成
 async function getTags(tab, str){
   // appId取得
@@ -112,35 +118,32 @@ async function getTags(tab, str){
   let words = ma.getElementsByTagName("word")
   let wordList = []
   let wordList_noun = []
-  let wordList_verb = []
-  let wordList_postpositional_particle = []
-  let wordList_auxiliary_verb = []
-  let wordList_adjective = []
+  let wordList_exception = []
   let wordList_impression_verb = []
-  let wordList_special = []
-
   for(let itr of Object.keys(words)) {
-    l = []
-    if (words[itr].children[2].innerHTML == "名詞"){
+    // l = []
+    if(words[itr].children[0].innerHTML == "、" || words[itr].children[0].innerHTML == "。"){
       // l.push(words[itr].children[0].innerHTML)　いらなかった
-      wordList_noun.push(words[itr].children[0].innerHTML)
+    }else{
+      if (words[itr].children[2].innerHTML == "名詞"){
+        // l.push(words[itr].children[0].innerHTML)　いらなかった
+        wordList_noun.push(words[itr].children[0].innerHTML)
+      }else if(words[itr].children[2].innerHTML == "助詞" || words[itr].children[2].innerHTML == "特殊" || words[itr].children[2].innerHTML == "助動詞"){
+         wordList_exception.push(words[itr].children[0].innerHTML)
+      } //else if(words[itr].children[2].innerHTML == "感動詞"){
+      //     wordList_impression_verb.push(words[itr].children[0].innerHTML)
+      // }
+      wordList.push(words[itr].children[0].innerHTML)
     }
-    // else if(words[itr].children[2].innerHTML == "動詞"){
-    //   wordList_verb.push(words[itr].children[0].innerHTML)
-    // }else if(words[itr].children[2].innerHTML == "助詞"){
-    //   wordList_postpositional_particle.push(words[itr].children[0].innerHTML)
-    // }else if(words[itr].children[2].innerHTML == "助動詞"){
-    //   wordList_auxiliary_verb.push(words[itr].children[0].innerHTML)
-    // }else if(words[itr].children[2].innerHTML == "形容詞"){
-    //   wordList_adjective.push(words[itr].children[0].innerHTML)
-    // }else if(words[itr].children[2].innerHTML == "感動詞"){
-    //   wordList_impression_verb.push(words[itr].children[0].innerHTML)
-    // }else{
-    //   wordList_special.push(words[itr].children[0].innerHTML)
-    // }
-    wordList.push(words[itr].children[0].innerHTML)
   }
-  console.log(toCountDict(ngram(wordList,4)))
+  var merge_count = Object.assign(toCountDict(ngram(wordList_noun,1),1),toCountDict(ngram_exception_words(wordList,wordList_exception,2),2),toCountDict(ngram_exception_words(wordList,wordList_exception,3),3), toCountDict(ngram_exception_words(wordList,wordList_exception,4),4));
+  var keys=[];
+  for(var key in merge_count)keys.push(key);
+  function Compare(a,b){
+    return merge_count[a] - merge_count[b];    
+  }
+  keys.sort(Compare);
+  console.log(keys)
   // console.log(toCountDict(wordList_noun))
 
 }
