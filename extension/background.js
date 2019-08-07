@@ -13,6 +13,13 @@ function encodeHTMLForm( data )
     return params.join( '&' ).replace( /%20/g, '+' )
 }
 
+// 現在表示しているURLを取得
+async function getCurrentURL() {
+  return new Promise(function(resolve) {
+    chrome.tabs.getSelected(null, function(tab) { resolve(tab.url) })
+  })
+}
+
 // 外部ファイル読み込み
 async function readFile(filename) {
   return new Promise(function(resolve) {
@@ -124,7 +131,7 @@ async function getToken(code, client_id, client_secret, redirect_uri) {
                   redirect_uri: redirect_uri,
                   grant_type: "authorization_code",
                   access_type: "offline" }
-    xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')
     xhr.send(encodeHTMLForm(data))
     xhr.onreadystatechange = function() {
       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
@@ -134,6 +141,28 @@ async function getToken(code, client_id, client_secret, redirect_uri) {
     }
   })
 }
+
+// リフレッシュトークンを利用して更新
+async function refreshToken(refresh_token, client_id, client_secret) {
+  return new Promise(function(resolve) {
+    let xhr = new XMLHttpRequest()
+    xhr.open('POST', 'https://www.googleapis.com/oauth2/v4/token', true)
+    let data = {  
+                  refresh_token: refresh_token,
+                  client_id: client_id,
+                  client_secret: client_secret,
+                  grant_type: "refresh_token" }
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')
+    xhr.send(encodeHTMLForm(data))
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        parsedText = JSON.parse(xhr.responseText)
+        resolve(parsedText)
+      }
+    }
+  })
+}
+
 
 // Youtubeから字幕IDを取得
 async function getYoutubeSubtitleID(video_id,api_key) {
@@ -177,13 +206,6 @@ async function getYoutubeData(movie_subtitle_id,api_key,access_token) {
   })
 }
 
-// URLを取得
-async function getCurrentURL() {
-  return new Promise(function(resolve) {
-    chrome.tabs.getSelected(null, function(tab) { resolve(tab.url) })
-  })
-}
-
 
 // 動画字幕を取得
 async function getSubtitles() {
@@ -197,12 +219,37 @@ async function getSubtitles() {
 
   // APIキー
   const api_key = await readFile("key/youtube_api_key.txt")
-  // コードを取得
-  code = await getCode(client_id, redirect_uri, scope)
-  // トークンを取得
-  token = await getToken(code, client_id, client_secret, redirect_uri)
-  const access_token = token["access_token"]
-  const refresh_token = token["refresh_token"]
+
+  // 認証キーを取る
+  let access_token = localStorage.getItem("access_token")
+  let refresh_token = localStorage.getItem("refresh_token")
+  let token_expires_date = new Date(localStorage.getItem("token_expires_date"))
+
+  if (token_expires_date === null) {
+    // コードを取得(拡張機能初使用時)
+    code = await getCode(client_id, redirect_uri, scope)
+    localStorage.setItem("code_google",code)
+    // トークンを取得
+    token = await getToken(code, client_id, client_secret, redirect_uri)
+    console.log(token)
+    localStorage.setItem("access_token", token["access_token"])
+    localStorage.setItem("refresh_token", token["refresh_token"])
+    // トークンの有効期限セット(1時間)
+    token_expires_date = new Date()
+    token_expires_date.setSeconds(dt.getSeconds()+token["expires_in"])
+    localStorage.setItem("token_expires_date", token_expires_date)
+  }
+
+  // トークンの有効期限が切れていたら
+  if (token_expires_date.getTime() < new Date().getTime()) {
+    // トークンを更新
+    token = await refresh_token(refresh_token, client_id, client_secret)
+    localStorage.setItem("access_token", token["access_token"])
+    // 新トークンの有効期限セット
+    let dt = new Date()
+    dt.setSeconds(dt.getSeconds()+token["expires_in"])
+    localStorage.setItem("token_expires_date", dt)
+  }
   
   // 動画の字幕ID
   let video_url = await getCurrentURL()
