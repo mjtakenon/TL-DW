@@ -175,15 +175,25 @@ async function getYoutubeSubtitleID(video_id,api_key) {
     xhr.onreadystatechange = function() {
       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
         parsedText = JSON.parse(xhr.responseText)
+        let asr_text = null
         console.log(parsedText)
         for(let itr of Object.keys(parsedText["items"])) {
           // 日本語の字幕があれば返す
-          if(parsedText["items"][itr]["snippet"]["language"] === "ja") {
+          if( parsedText["items"][itr]["snippet"]["language"] === "ja" && 
+            parsedText["items"][itr]["snippet"]["trackKind"] === "ASR") {
+              asr_text = parsedText["items"][itr]["id"]
+            }
+          if( parsedText["items"][itr]["snippet"]["language"] === "ja" && 
+              parsedText["items"][itr]["snippet"]["trackKind"] === "standard") {
             resolve(parsedText["items"][itr]["id"])
           }
         }
-        // 無ければ処理を行わない
-        resolve(false)
+        if (asr_text !== null) { 
+          resolve(asr_text)
+        } else {
+          // 無ければ処理を行わない
+          resolve(null)
+        }
       }
     }
   })
@@ -231,7 +241,6 @@ async function getSubtitles() {
     localStorage.setItem("code_google",code)
     // トークンを取得
     token = await getToken(code, client_id, client_secret, redirect_uri)
-    console.log(token)
     localStorage.setItem("access_token", token["access_token"])
     localStorage.setItem("refresh_token", token["refresh_token"])
     // トークンの有効期限セット(1時間)
@@ -260,7 +269,7 @@ async function getSubtitles() {
     video_id = video_url.substring(video_url.indexOf("v=")+2, video_url.indexOf("&"))
   }
   const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
-  if (movie_subtitle_id === false) { 
+  if (movie_subtitle_id === null) { 
     console.log("日本語の字幕は取得できませんでした.")
     return
   }
@@ -272,9 +281,9 @@ async function getSubtitles() {
   for(let itr of Object.keys(subTitleElements)) {
     outerHTML = subTitleElements[itr].outerHTML
     l = []
-    l.push(subTitleElements[itr].innerHTML)
-    l.push(outerHTML.substring(outerHTML.indexOf("begin")+7, outerHTML.indexOf("begin")+19))
-    l.push(outerHTML.substring(outerHTML.indexOf("end")+5, outerHTML.indexOf("end")+17))
+    l.push(subTitleElements[itr].innerHTML.replace(/<.*?>/g, ''))
+    l.push(outerHTML.substring(outerHTML.indexOf("begin=")+7, outerHTML.indexOf("begin=")+19))
+    l.push(outerHTML.substring(outerHTML.indexOf("end=")+5, outerHTML.indexOf("end=")+17))
     subTitleList.push(l)
   }
   console.log(subTitleList)
