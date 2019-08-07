@@ -256,99 +256,111 @@ async function getYoutubeSubtitle(movie_subtitle_id,api_key,access_token) {
   })
 }
 
+// 認証キーを取得・更新
+async function googleIdenfity(client_id, client_secret, redirect_uri, scope) {
+  // 認証キーを取る
+  let refresh_token = localStorage.getItem("refresh_token")
+  let token_expires_date = new Date(localStorage.getItem("token_expires_date"))
+
+  if (localStorage.getItem("token_expires_date") === null) {
+    // コードを取得(拡張機能初使用時)
+    code = await getCode(client_id, redirect_uri, scope)
+    localStorage.setItem("code_google",code)
+    // トークンを取得
+    token = await getToken(code, client_id, client_secret, redirect_uri)
+    localStorage.setItem("access_token", token["access_token"])
+    localStorage.setItem("refresh_token", token["refresh_token"])
+    // トークンの有効期限セット(1時間)
+    token_expires_date = new Date()
+    token_expires_date.setSeconds(token_expires_date.getSeconds()+token["expires_in"])
+    localStorage.setItem("token_expires_date", token_expires_date)
+  }
+
+  // トークンの有効期限が切れていたら
+  if (token_expires_date.getTime() < new Date().getTime()) {
+    // トークンを更新
+    token = await refreshToken(refresh_token, client_id, client_secret)
+    if (token === null) { 
+      return null
+    }
+    localStorage.setItem("access_token", token["access_token"])
+    // 新トークンの有効期限セット
+    let dt = new Date()
+    dt.setSeconds(dt.getSeconds()+token["expires_in"])
+    localStorage.setItem("token_expires_date", dt)
+  }
+}
+
 // 動画字幕を取得
-async function getSubtitles() {
-    // https://console.developers.google.com にて生成
-    const client_id = await readFile("key/client_id.txt")
-    const client_secret = await readFile("key/client_secret.txt")
-    // chromeアプリのIDを利用
-    const redirect_uri = "https://lopgmmlmjfellhcdgdbjpdflolgffkei.chromiumapp.org"
-    // 許可するスコープ
-    const scope = "https://www.googleapis.com/auth/youtube.force-ssl"
+async function getSubtitles(api_key) {
+  let access_token = localStorage.getItem("access_token")
+  // 動画の字幕ID
+  let video_url = await getCurrentURL()
+  if (video_url === null) { 
+    return null
+  }
+  let video_id = ""
+  if (video_url.indexOf("&") === -1) {
+    video_id = video_url.substring(video_url.indexOf("v=")+2)
+  } else {
+    video_id = video_url.substring(video_url.indexOf("v=")+2, video_url.indexOf("&"))
+  }
+  const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
+  if (movie_subtitle_id === null) { 
+    return null
+  }
+  // ここで403エラーが発生する場合、その動画がサードパーティーの字幕投稿を許可していないかららしい
+  // https://stackoverflow.com/questions/30653865/downloading-captions-always-returns-a-403
+  let subTitleList = []
+  let subTitleElements = await getYoutubeSubtitle(movie_subtitle_id, api_key, access_token)
+  if (subTitleElements === null) {
+    return null
+  } else {
+    subTitleElements = subTitleElements.getElementsByTagName("p")
+    for(let itr of Object.keys(subTitleElements)) {
+      outerHTML = subTitleElements[itr].outerHTML
+      l = []
+      l.push(subTitleElements[itr].innerHTML.replace(/<.*?>/g, ''))
+      l.push(outerHTML.substring(outerHTML.indexOf("begin=")+7, outerHTML.indexOf("begin=")+19))
+      l.push(outerHTML.substring(outerHTML.indexOf("end=")+5, outerHTML.indexOf("end=")+17))
+      subTitleList.push(l)
+    }
+  }
+  return subTitleList
+}
 
-    // APIキー
-    const api_key = await readFile("key/youtube_api_key.txt")
+async function getComment() {
 
-    // 認証キーを取る
-    let access_token = localStorage.getItem("access_token")
-    let refresh_token = localStorage.getItem("refresh_token")
-    let token_expires_date = new Date(localStorage.getItem("token_expires_date"))
-
-    if (token_expires_date === null) {
-      // コードを取得(拡張機能初使用時)
-      code = await getCode(client_id, redirect_uri, scope)
-      localStorage.setItem("code_google",code)
-      // トークンを取得
-      token = await getToken(code, client_id, client_secret, redirect_uri)
-      localStorage.setItem("access_token", token["access_token"])
-      localStorage.setItem("refresh_token", token["refresh_token"])
-      // トークンの有効期限セット(1時間)
-      token_expires_date = new Date()
-      token_expires_date.setSeconds(dt.getSeconds()+token["expires_in"])
-      localStorage.setItem("token_expires_date", token_expires_date)
-    }
-
-    // トークンの有効期限が切れていたら
-    if (token_expires_date.getTime() < new Date().getTime()) {
-      // トークンを更新
-      token = await refreshToken(refresh_token, client_id, client_secret)
-      if (token === null) { 
-        return null
-      }
-      localStorage.setItem("access_token", token["access_token"])
-      // 新トークンの有効期限セット
-      let dt = new Date()
-      dt.setSeconds(dt.getSeconds()+token["expires_in"])
-      localStorage.setItem("token_expires_date", dt)
-    }
-    
-    // 動画の字幕ID
-    let video_url = await getCurrentURL()
-    if (video_url === null) { 
-      return null
-    }
-    let video_id = ""
-    if (video_url.indexOf("&") === -1) {
-      video_id = video_url.substring(video_url.indexOf("v=")+2)
-    } else {
-      video_id = video_url.substring(video_url.indexOf("v=")+2, video_url.indexOf("&"))
-    }
-    const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
-    if (movie_subtitle_id === null) { 
-      return null
-    }
-    // ここで403エラーが発生する場合、その動画がサードパーティーの字幕投稿を許可していないかららしい
-    // https://stackoverflow.com/questions/30653865/downloading-captions-always-returns-a-403
-    let subTitleList = []
-    let subTitleElements = await getYoutubeSubtitle(movie_subtitle_id, api_key, access_token)
-    if (subTitleElements === null) {
-      return null
-    } else {
-      subTitleElements = subTitleElements.getElementsByTagName("p")
-      for(let itr of Object.keys(subTitleElements)) {
-        outerHTML = subTitleElements[itr].outerHTML
-        l = []
-        l.push(subTitleElements[itr].innerHTML.replace(/<.*?>/g, ''))
-        l.push(outerHTML.substring(outerHTML.indexOf("begin=")+7, outerHTML.indexOf("begin=")+19))
-        l.push(outerHTML.substring(outerHTML.indexOf("end=")+5, outerHTML.indexOf("end=")+17))
-        subTitleList.push(l)
-      }
-    }
-    // return subTitleList
-    return (subTitleList)
 }
 
 async function main() {
-  subTitleList = await getSubtitles()
+  // https://console.developers.google.com にて生成
+  const client_id = await readFile("key/client_id.txt")
+  const client_secret = await readFile("key/client_secret.txt")
+  // chromeアプリのIDを利用
+  const redirect_uri = "https://lopgmmlmjfellhcdgdbjpdflolgffkei.chromiumapp.org"
+  // 許可するスコープ
+  const scope = "https://www.googleapis.com/auth/youtube.force-ssl"
+
+  // APIキー
+  const api_key = await readFile("key/youtube_api_key.txt")
+
+  if (await googleIdenfity(client_id, client_secret, redirect_uri, scope) === null) {
+    console.error("認証に失敗しました")
+    return null
+  }
+  let subTitleList = await getSubtitles(api_key)
   if (subTitleList === null) {
     console.error("字幕の取得に失敗しました.")
     return null
   }
-  var subTitle = ""
+  let subTitle = ""
   for(let itr of Object.keys(subTitleList)) {
     subTitle += subTitleList[itr][0] + "\n"
   }
   console.log(subTitle)
+
+  let commentList = await getComment()
 }
 // 
 chrome.browserAction.onClicked.addListener(function(tab) {
