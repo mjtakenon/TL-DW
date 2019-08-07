@@ -60,6 +60,35 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
+function toCountDict(array){
+  let dict = {};
+  for(let key of array){
+      dict[key] = array.filter(function(x){return x==key}).length;
+  }
+  return dict;
+}
+// var ngram = function(words, n) {
+//   var i;
+//   var grams = [];
+
+//   for(i = 0; i <= words.length-n; i++) {
+//     grams.push(words.substr(i, n).toLowerCase());
+//   }
+//   return grams;
+// }
+var ngram = function(list, n) {
+  var i;
+  var grams = [];
+  for(i = 0; i <= list.length-n; i++) {
+    var n_text = list[i];
+    for (j = 1; j < n; j++){
+      n_text += list[i + j]
+    }
+    grams.push(n_text)
+  }
+  return grams;
+}
+
 // タグを生成
 async function getTags(tab, str){
   // appId取得
@@ -80,16 +109,40 @@ async function getTags(tab, str){
   let ma = await getMorphologicalAnalysisResults(appId,str)
   let parser = new DOMParser()
   ma = parser.parseFromString(ma.responseText, "text/xml")
-
   let words = ma.getElementsByTagName("word")
   let wordList = []
+  let wordList_noun = []
+  let wordList_verb = []
+  let wordList_postpositional_particle = []
+  let wordList_auxiliary_verb = []
+  let wordList_adjective = []
+  let wordList_impression_verb = []
+  let wordList_special = []
+
   for(let itr of Object.keys(words)) {
     l = []
-    l.push(words[itr].children[0].innerHTML)
-    l.push(words[itr].children[2].innerHTML)
-    wordList.push(l)
+    if (words[itr].children[2].innerHTML == "名詞"){
+      // l.push(words[itr].children[0].innerHTML)　いらなかった
+      wordList_noun.push(words[itr].children[0].innerHTML)
+    }
+    // else if(words[itr].children[2].innerHTML == "動詞"){
+    //   wordList_verb.push(words[itr].children[0].innerHTML)
+    // }else if(words[itr].children[2].innerHTML == "助詞"){
+    //   wordList_postpositional_particle.push(words[itr].children[0].innerHTML)
+    // }else if(words[itr].children[2].innerHTML == "助動詞"){
+    //   wordList_auxiliary_verb.push(words[itr].children[0].innerHTML)
+    // }else if(words[itr].children[2].innerHTML == "形容詞"){
+    //   wordList_adjective.push(words[itr].children[0].innerHTML)
+    // }else if(words[itr].children[2].innerHTML == "感動詞"){
+    //   wordList_impression_verb.push(words[itr].children[0].innerHTML)
+    // }else{
+    //   wordList_special.push(words[itr].children[0].innerHTML)
+    // }
+    wordList.push(words[itr].children[0].innerHTML)
   }
-  console.log(wordList)
+  console.log(toCountDict(ngram(wordList,4)))
+  // console.log(toCountDict(wordList_noun))
+
 }
 
 
