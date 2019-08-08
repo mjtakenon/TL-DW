@@ -35,7 +35,7 @@ async function readFile(filename) {
         console.error(xhr.responseText)
         console.error(filename+"を開けません.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -73,7 +73,7 @@ async function getKeyword(appId,sentence) {
         console.error(xhr.responseText)
         console.error("Yahoo!APIにアクセスできません.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -94,7 +94,7 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
         console.error(xhr)
         console.error(xhr.responseText)
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -173,7 +173,7 @@ async function getToken(code, client_id, client_secret, redirect_uri) {
         console.error(xhr.responseText)
         console.error("トークンが取得できませんでした.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -183,7 +183,7 @@ async function refreshToken(refresh_token, client_id, client_secret) {
   return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
     xhr.open('POST', 'https://www.googleapis.com/oauth2/v4/token', true)
-    let data = {  
+    let data = {
                   refresh_token: refresh_token,
                   client_id: client_id,
                   client_secret: client_secret,
@@ -200,7 +200,7 @@ async function refreshToken(refresh_token, client_id, client_secret) {
         console.error(xhr.responseText)
         console.error("リフレッシュトークンの更新に失敗しました.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -210,7 +210,7 @@ async function refreshToken(refresh_token, client_id, client_secret) {
 async function getYoutubeSubtitleID(video_id,api_key) {
   return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
-    
+
     xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId='+video_id+'&key='+api_key, true)
     xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
     xhr.send(encodeHTMLForm())
@@ -220,16 +220,16 @@ async function getYoutubeSubtitleID(video_id,api_key) {
         let asr_text = null
         for(let itr of Object.keys(parsedText["items"])) {
           // 日本語の字幕があれば返す
-          if( parsedText["items"][itr]["snippet"]["language"] === "ja" && 
+          if( parsedText["items"][itr]["snippet"]["language"] === "ja" &&
             parsedText["items"][itr]["snippet"]["trackKind"] === "ASR") {
               asr_text = parsedText["items"][itr]["id"]
             }
-          if( parsedText["items"][itr]["snippet"]["language"] === "ja" && 
+          if( parsedText["items"][itr]["snippet"]["language"] === "ja" &&
               parsedText["items"][itr]["snippet"]["trackKind"] === "standard") {
             resolve(parsedText["items"][itr]["id"])
           }
         }
-        if (asr_text !== null) { 
+        if (asr_text !== null) {
           resolve(asr_text)
         } else {
           // 無ければ処理を行わない
@@ -241,7 +241,7 @@ async function getYoutubeSubtitleID(video_id,api_key) {
         console.error(xhr.responseText)
         console.error("字幕IDが取得できません.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -264,7 +264,7 @@ async function getYoutubeSubtitle(movie_subtitle_id,api_key,access_token) {
         console.error(xhr.responseText)
         console.error("字幕情報がをとる許可がありません.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -293,7 +293,7 @@ async function googleIdenfity(client_id, client_secret, redirect_uri, scope) {
   if (token_expires_date.getTime() < new Date().getTime()) {
     // トークンを更新
     token = await refreshToken(refresh_token, client_id, client_secret)
-    if (token === null) { 
+    if (token === null) {
       return null
     }
     localStorage.setItem("access_token", token["access_token"])
@@ -309,7 +309,7 @@ async function getSubtitles(api_key) {
   let access_token = localStorage.getItem("access_token")
   // 動画の字幕ID
   let video_url = await getCurrentURL()
-  if (video_url === null) { 
+  if (video_url === null) {
     return null
   }
   let video_id = ""
@@ -319,7 +319,7 @@ async function getSubtitles(api_key) {
     video_id = video_url.substring(video_url.indexOf("v=")+2, video_url.indexOf("&"))
   }
   const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
-  if (movie_subtitle_id === null) { 
+  if (movie_subtitle_id === null) {
     return null
   }
   // ここで403エラーが発生する場合、その動画がサードパーティーの字幕投稿を許可していないかららしい
@@ -348,7 +348,7 @@ async function getLiveChat() {
     let xhr = new XMLHttpRequest()
     // xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet&liveChatId=razqq6dAieE', true)
     xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet&liveChatId=razqq6dAieE', true)
-    
+
     xhr.setRequestHeader('Authorization', ' Bearer '+access_token)
     xhr.send(encodeHTMLForm())
     xhr.onreadystatechange = function() {
@@ -362,7 +362,7 @@ async function getLiveChat() {
         console.error(xhr.responseText)
         console.error("チャット情報がをとる許可がありません.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -386,7 +386,7 @@ async function main(tab) {
     console.error("認証に失敗しました")
     return null
   }
-  
+
   // 字幕取得
   let subTitleList = await getSubtitles(api_key)
   if (subTitleList === null) {
@@ -404,44 +404,22 @@ async function main(tab) {
   // let liveChatList = await getLiveChat()
   // console.log(liveChatList)
 }
-// 
+//
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
   // addListenerをawaitにできないのでこれで代用
   main(tab)
   // 拡張機能のID表示
-  
+
   console.log()
   // str = "桃から生まれたポテト侍"
   // showTags(tab, str)
   return;
 })
 
-// バグあり 既存のタグを消してしまう
-// このコードがない場合ページ遷移をしても追加されたタグが消えない
-chrome.tabs.onUpdated.addListener(function(tabid, info, tab){
-  console.log("chrome.tabs.onUpdated")
-  if (info["status"] === "loading") {
-    // console.log(info)
-    // chrome.tabs.executeScript(tab.id, {
-    //   code: 'let status = ' + info["status"]
-    // }, () => {
-    //   chrome.tabs.executeScript({
-    //     file: "clearTags.js"
-    //   })
-    // })
-  } else if (info["status"] === "complete") {
-    // console.log(info)
-    // chrome.tabs.executeScript(tab.id, {
-    //   code: 'let status = ' + info["status"]
-    // }, () => {
-    //   chrome.tabs.executeScript({
-    //     file: "saveTags.js"
-    //   })
-    // })
-  } else {
-    return
-  }
-  // info.url
-  // tab.url
-})
+// 別動画に遷移したときに，表示していたタグを削除
+chrome.tabs.onUpdated.addListener((tabid, info, tab) => {
+  chrome.tabs.executeScript({
+    file: "clearTags.js"
+  });
+});
