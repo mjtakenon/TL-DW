@@ -214,26 +214,30 @@ async function getYoutubeSubtitleID(video_id,api_key) {
   return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
 
-    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId='+video_id+'&key='+api_key, true)
+    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions?part=snippet&fields=items&videoId='+video_id+'&key='+api_key, true)
     xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
     xhr.send(encodeHTMLForm())
     xhr.onreadystatechange = function() {
       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
         parsedText = JSON.parse(xhr.responseText)
         let asr_text = null
+        let foreign_text = null
         for(let itr of Object.keys(parsedText["items"])) {
           // 日本語の字幕があれば返す
-          if( parsedText["items"][itr]["snippet"]["language"] === "ja" &&
-            parsedText["items"][itr]["snippet"]["trackKind"] === "ASR") {
-              asr_text = parsedText["items"][itr]["id"]
-            }
-          if( parsedText["items"][itr]["snippet"]["language"] === "ja" &&
-              parsedText["items"][itr]["snippet"]["trackKind"] === "standard") {
-            resolve(parsedText["items"][itr]["id"])
+          if (parsedText["items"][itr]["snippet"]["language"] === "ja" && parsedText["items"][itr]["snippet"]["trackKind"] === "standard") {
+            // 日本語の手動字幕が一番
+            resolve([parsedText["items"][itr]["id"],"ja"])
+          } else if ( parsedText["items"][itr]["snippet"]["language"] === "ja" && parsedText["items"][itr]["snippet"]["trackKind"] === "ASR") {
+            asr_text = parsedText["items"][itr]["id"]
+          } else if (parsedText["items"][itr]["snippet"]["language"] === "en" || foreign_text === null) {
+            // 英語だったらそちらを優先
+            foreign_text = [parsedText["items"][itr]["id"], parsedText["items"][itr]["snippet"]["language"]]
           }
         }
         if (asr_text !== null) {
-          resolve(asr_text)
+          resolve([asr_text,"asr"])
+        } else if (foreign_text !== null) {
+          resolve(foreign_text)
         } else {
           // 無ければ処理を行わない
           resolve(null)
@@ -250,19 +254,23 @@ async function getYoutubeSubtitleID(video_id,api_key) {
 }
 
 // Youtubeから字幕を取得
-async function getYoutubeSubtitle(movie_subtitle_id,api_key,access_token) {
+async function getYoutubeSubtitle(movie_subtitle_id,api_key,access_token,need_translate) {
   return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
-    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions/'+movie_subtitle_id+'?tfmt=ttml&key='+api_key, true)
+    if (need_translate) {
+      xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions/'+movie_subtitle_id+'?tfmt=ttml&tlang=ja&key='+api_key, true)
+    } else {
+      xhr.open('GET', 'https://www.googleapis.com/youtube/v3/captions/'+movie_subtitle_id+'?tfmt=ttml&key='+api_key, true)
+    }
     xhr.setRequestHeader('Authorization', ' Bearer '+access_token)
     xhr.send(encodeHTMLForm())
     xhr.onreadystatechange = function() {
       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        console.log(xhr)
         let parser = new DOMParser()
         xhr = parser.parseFromString(xhr.responseText, "text/xml")
         resolve(xhr)
-      }
-      else if (xhr.readyState == XMLHttpRequest.DONE && xhr.status != 200) {
+      } else if (xhr.readyState == XMLHttpRequest.DONE && xhr.status != 200) {
         console.error(xhr)
         console.error(xhr.responseText)
         console.error("字幕情報がをとる許可がありません.")
@@ -331,15 +339,21 @@ async function getSubtitles(api_key) {
     console.error("video_idが取得できません.")
     return null
   }
-  const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
-  if (movie_subtitle_id === null) { 
+  const movie_subtitle_info = await getYoutubeSubtitleID(video_id, api_key)
+  if (movie_subtitle_info === null) { 
     console.error("movie_subtitle_idが取得できません.")
     return null
+  }
+  let movie_subtitle_id = movie_subtitle_info[0]
+  if (movie_subtitle_info[1] === "asr") {
+    console.warn("自動字幕を利用するためタグの精度が低い可能性があります")
+  } else {
+    console.warn("外国語字幕("+movie_subtitle_info[1]+")を翻訳するためタグの精度が低い可能性があります")
   }
   // ここで403エラーが発生する場合、その動画がサードパーティーの字幕投稿を許可していないかららしい
   // https://stackoverflow.com/questions/30653865/downloading-captions-always-returns-a-403
   let subTitleList = []
-  let subTitleElements = await getYoutubeSubtitle(movie_subtitle_id, api_key, access_token)
+  let subTitleElements = await getYoutubeSubtitle(movie_subtitle_id, api_key, access_token, movie_subtitle_info[1]==="fo")
   if (subTitleElements === null) {
     return null
   } else {
@@ -365,7 +379,7 @@ async function getComments(api_key,max_results) {
   }
     return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
-    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId='+video_id+'&key='+api_key+'&maxResults='+max_results+'&order=relevance&&fields=items/snippet/topLevelComment/snippet/textOriginal', true)
+    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&fields=items/snippet/topLevelComment/snippet/textOriginal&videoId='+video_id+'&key='+api_key+'&maxResults='+max_results+'&order=relevance', true)
     
     xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
     xhr.send(encodeHTMLForm())
@@ -383,6 +397,31 @@ async function getComments(api_key,max_results) {
         console.error(xhr)
         console.error(xhr.responseText)
         console.error("コメントを取得できません.")
+        resolve(null)
+      }
+    }
+  })
+}
+
+// 翻訳(Google Apps Script利用)
+async function doTranslate(str) {
+  return new Promise(function(resolve) {
+    let xhr = new XMLHttpRequest()
+    xhr.open('POST', "https://script.google.com/macros/s/AKfycbyCl1i6R5VVdzJ4NO4ydpizaa27K9JS_6JZTTDMd9w9WnuJFeM/exec", true)
+    data = { text:   str,
+            target: "ja" }
+    xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
+    xhr.send(encodeHTMLForm(data))
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        console.log(xhr.responseText)
+        // let parsedXhr = JSON.parse(xhr.responseText)
+        resolve(xhr.responseText)
+      }
+      else if (xhr.readyState == XMLHttpRequest.DONE && xhr.status != 200) {
+        console.error(xhr)
+        console.error(xhr.responseText)
+        console.error("翻訳に失敗しました.")
         resolve(null)
       }
     }
@@ -434,11 +473,12 @@ async function main(tab) {
     return null
   }
 
-  // 字幕取得
-  let subTitleList = await getSubtitles(api_key)
-
   // 最終的に食わせる文字列
   let str = ""
+
+
+  // 字幕取得
+  let subTitleList = await getSubtitles(api_key)
 
   let subTitle = ""
   if (subTitleList === null) {
@@ -448,7 +488,8 @@ async function main(tab) {
     for(let itr of Object.keys(subTitleList)) {
       subTitle += subTitleList[itr][0] + "\n"
     }
-    console.log(subTitle)
+    // console.log(subTitle)
+    subTitle.replace(["\r","\n"]," ")
     str += subTitle
   }
 
@@ -458,9 +499,11 @@ async function main(tab) {
   commentsList = await getComments(api_key,20)
   if (commentsList !== null) {
     for(let itr of Object.keys(commentsList)) {
-      comment += commentsList[itr] + "\n"
+      comment += commentsList[itr] + " "
     }
-    console.log(comment)
+    // console.log(comment)
+    comment.replace(["\r","\n"]," ")
+    comment = await doTranslate(comment) + "\n"
     str += comment
   }
   showTags(tab, str)
@@ -473,11 +516,6 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
   // addListenerをawaitにできないのでこれで代用
   main(tab)
-  // 拡張機能のID表示
-
-  console.log()
-  // str = "桃から生まれたポテト侍"
-  // showTags(tab, str)
   return;
 })
 
