@@ -1,7 +1,7 @@
 // タグを表示する処理
 console.log("showTags")
-res = localStorage.getItem("res")
-console.log(res)
+// res = localStorage.getItem("res")
+// console.log(res)
 // 元のタグ要素を取得
 className = "super-title style-scope ytd-video-primary-info-renderer";
 

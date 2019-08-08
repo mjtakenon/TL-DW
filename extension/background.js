@@ -112,7 +112,7 @@ async function showTags(tab, str){
   localStorage.setItem("res", res)
 
   chrome.tabs.executeScript(tab.id, {
-    code: ''//let res = '+JSON.stringify(res)
+    code: 'let res = '+JSON.stringify(res)
   }, () => {
     chrome.tabs.executeScript(tab.id, {
       file: "showTags.js",
