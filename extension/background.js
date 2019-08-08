@@ -103,13 +103,16 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
 async function showTags(tab, str){
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
+  console.log(str)
   // キーワード取得
   let res = await getKeyword(appId,str)
   res = JSON.parse(res.responseText)
   // console.log(res)
   // タグを表示
+  localStorage.setItem("res", res)
+
   chrome.tabs.executeScript(tab.id, {
-    code: 'let res = '+JSON.stringify(res)
+    code: ''//let res = '+JSON.stringify(res)
   }, () => {
     chrome.tabs.executeScript(tab.id, {
       file: "showTags.js",
@@ -433,28 +436,34 @@ async function main(tab) {
 
   // 字幕取得
   let subTitleList = await getSubtitles(api_key)
+
+  // 最終的に食わせる文字列
+  let str = ""
+
   let subTitle = ""
   if (subTitleList === null) {
     console.error("字幕の取得に失敗しました.")
-    return null
   } else {
     // 字幕から1文に作成
     for(let itr of Object.keys(subTitleList)) {
       subTitle += subTitleList[itr][0] + "\n"
     }
-  
     console.log(subTitle)
+    str += subTitle
   }
 
 
   // コメント取得
-  commentsList = await getComments(api_key,20)
   let comment = ""
-  for(let itr of Object.keys(commentsList)) {
-    comment += commentsList[itr] + "\n"
+  commentsList = await getComments(api_key,20)
+  if (commentsList !== null) {
+    for(let itr of Object.keys(commentsList)) {
+      comment += commentsList[itr] + "\n"
+    }
+    console.log(comment)
+    str += comment
   }
-  console.log(comment)
-  showTags(tab,subTitle+comment)
+  showTags(tab, str)
   // // Youtube Live Chat 取得
   // let liveChatList = await getLiveChat()
   // console.log(liveChatList)
