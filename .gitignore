@@ -1,3 +1,4 @@
 extension/key*
 .vscode/
 backend/
+.DS_Store
