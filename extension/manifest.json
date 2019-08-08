@@ -5,7 +5,8 @@
   "permissions": [
     "https://www.youtube.com/*",
     "activeTab",
-    "identity"
+    "identity",
+    "management"
   ],
   "background": {
     "scripts": ["background.js", "hot-reload.js"],

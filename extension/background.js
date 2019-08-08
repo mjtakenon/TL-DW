@@ -40,6 +40,21 @@ async function readFile(filename) {
   })
 }
 
+async function getExtensionID() {
+  return new Promise(function(resolve) {
+    chrome.management.getAll(function(result) {
+      const extension = result.filter(result => {
+        return result.description === "a extention for getting words from Youtube videos";
+      })
+      if (extension === null || extension === undefined) {
+        resolve(null)
+      } else {
+        resolve(extension[0].id)
+      }
+    })
+  })
+}
+
 // YahooAPIアクセス関連
 // Yahoo!APIにアクセスしてキーワードを取得
 async function getKeyword(appId,sentence) {
@@ -336,7 +351,9 @@ async function main() {
   const client_id = await readFile("key/client_id.txt")
   const client_secret = await readFile("key/client_secret.txt")
   // chromeアプリのIDを利用
-  const redirect_uri = "https://lopgmmlmjfellhcdgdbjpdflolgffkei.chromiumapp.org"
+  const redirect_uri = "https://"+await getExtensionID()+".chromiumapp.org"
+  console.log(redirect_uri)
+  // https://kiahobelgfhachbmpbmkijpgokajlnii.chromiumapp.org
   // 許可するスコープ
   const scope = "https://www.googleapis.com/auth/youtube.force-ssl"
 
@@ -367,10 +384,13 @@ async function main() {
 // 
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
-  // この関数をawaitにできないのでこれで代用
-  // main()
-  str = "桃から生まれたポテト侍"
-  showTags(tab, str)
+  // addListenerをawaitにできないのでこれで代用
+  main()
+  // 拡張機能のID表示
+  
+  console.log()
+  // str = "桃から生まれたポテト侍"
+  // showTags(tab, str)
   return;
 })
 
