@@ -343,10 +343,31 @@ async function getSubtitles(api_key) {
 }
 
 async function getLiveChat() {
-  "https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet&liveChatId=razqq6dAieE&t=6s"
+  return new Promise(function(resolve) {
+    let access_token = localStorage.getItem("access_token")
+    let xhr = new XMLHttpRequest()
+    // xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet&liveChatId=razqq6dAieE', true)
+    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet&liveChatId=razqq6dAieE', true)
+    
+    xhr.setRequestHeader('Authorization', ' Bearer '+access_token)
+    xhr.send(encodeHTMLForm())
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        let parser = new DOMParser()
+        xhr = parser.parseFromString(xhr.responseText, "text/xml")
+        resolve(xhr)
+      }
+      else if (xhr.readyState == XMLHttpRequest.DONE && xhr.status != 200) {
+        console.error(xhr)
+        console.error(xhr.responseText)
+        console.error("チャット情報がをとる許可がありません.")
+        resolve(null)
+      } 
+    }
+  })
 }
 
-async function main() {
+async function main(tab) {
   // https://console.developers.google.com にて生成
   const client_id = await readFile("key/client_id.txt")
   const client_secret = await readFile("key/client_secret.txt")
@@ -377,15 +398,17 @@ async function main() {
     subTitle += subTitleList[itr][0] + "\n"
   }
   console.log(subTitle)
+  showTags(tab,subTitle)
 
-  // Youtube Live Chat 取得
-  let liveChatList = await getLiveChat()
+  // // Youtube Live Chat 取得
+  // let liveChatList = await getLiveChat()
+  // console.log(liveChatList)
 }
 // 
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
   // addListenerをawaitにできないのでこれで代用
-  main()
+  main(tab)
   // 拡張機能のID表示
   
   console.log()
