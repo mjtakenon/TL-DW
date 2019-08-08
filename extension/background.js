@@ -63,7 +63,7 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
 function toCountDict(array,W){
   let dict = {};
   for(let key of array){
-      dict[key] = W * array.filter(function(x){return x==key}).length;
+    dict[key] = Math.log(W) * array.filter(function(x){return x==key}).length * Math.log(key.length);
   }
   return dict;
 }
@@ -136,21 +136,30 @@ async function getTags(tab, str){
       wordList.push(words[itr].children[0].innerHTML)
     }
   }
-  var merge_count = Object.assign(toCountDict(ngram(wordList_noun,1),1),toCountDict(ngram_exception_words(wordList,wordList_exception,2),2),toCountDict(ngram_exception_words(wordList,wordList_exception,3),3), toCountDict(ngram_exception_words(wordList,wordList_exception,4),4));
+  // var merge_count = Object.assign(toCountDict(ngram(wordList_noun,1),1),toCountDict(ngram_exception_words(wordList,wordList_exception,2),2),toCountDict(ngram_exception_words(wordList,wordList_exception,3),3), toCountDict(ngram_exception_words(wordList,wordList_exception,4),4));
+  let merge_count = toCountDict(ngram(wordList_noun,1),1);
+  const MAX_N_GRAM = 10;
+  for (let i = 2; i <= MAX_N_GRAM; i++) {
+    Object.assign(merge_count, toCountDict(ngram_exception_words(wordList,wordList_exception,i),i));
+  }
   var keys=[];
   for(var key in merge_count)keys.push(key);
-  function Compare(a,b){
-    return merge_count[a] - merge_count[b];    
+  keys.sort((a, b) => merge_count[b] - merge_count[a]);
+  for (let i = 1; i < keys.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (keys[j].indexOf(keys[i]) != -1) {
+        keys.splice(i, 1);
+        i--;
+        break;
+      }
+    }
   }
-  keys.sort(Compare);
-  console.log(keys)
+  console.log(keys);
   // console.log(toCountDict(wordList_noun))
 
 }
 
 
-
-// 
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
   // dammy data
