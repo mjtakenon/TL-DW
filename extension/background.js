@@ -304,12 +304,10 @@ async function googleIdenfity(client_id, client_secret, redirect_uri, scope) {
   }
 }
 
-// 動画字幕を取得
-async function getSubtitles(api_key) {
-  let access_token = localStorage.getItem("access_token")
-  // 動画の字幕ID
+
+async function getVideoID() {
   let video_url = await getCurrentURL()
-  if (video_url === null) { 
+  if (video_url === null) {
     return null
   }
   let video_id = ""
@@ -318,8 +316,21 @@ async function getSubtitles(api_key) {
   } else {
     video_id = video_url.substring(video_url.indexOf("v=")+2, video_url.indexOf("&"))
   }
+  return video_id
+}
+
+// 動画字幕を取得
+async function getSubtitles(api_key) {
+  let access_token = localStorage.getItem("access_token")
+  // 動画の字幕ID
+  let video_id = await getVideoID()
+  if (video_id == null) {
+    console.error("video_idが取得できません.")
+    return null
+  }
   const movie_subtitle_id = await getYoutubeSubtitleID(video_id, api_key)
   if (movie_subtitle_id === null) { 
+    console.error("movie_subtitle_idが取得できません.")
     return null
   }
   // ここで403エラーが発生する場合、その動画がサードパーティーの字幕投稿を許可していないかららしい
@@ -342,12 +353,45 @@ async function getSubtitles(api_key) {
   return subTitleList
 }
 
-async function getLiveChat() {
+// コメント取得
+async function getComments(api_key,max_results) {
+  let video_id = await getVideoID()
+  if (video_id == null) {
+    console.error("video_idが取得できません.")
+    return null
+  }
+    return new Promise(function(resolve) {
+    let xhr = new XMLHttpRequest()
+    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId='+video_id+'&key='+api_key+'&maxResults='+max_results+'&order=relevance&&fields=items/snippet/topLevelComment/snippet/textOriginal', true)
+    
+    xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
+    xhr.send(encodeHTMLForm())
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        let parsedXhr = JSON.parse(xhr.responseText)
+        let list = []
+        for(let itr of Object.keys(parsedXhr["items"])) {
+          list.push(parsedXhr["items"][itr]["snippet"]["topLevelComment"]["snippet"]["textOriginal"])
+        }
+        console.log(list)
+        resolve(list)
+      }
+      else if (xhr.readyState == XMLHttpRequest.DONE && xhr.status != 200) {
+        console.error(xhr)
+        console.error(xhr.responseText)
+        console.error("コメントを取得できません.")
+        resolve(null)
+      }
+    }
+  })
+}
+
+// ライブチャット取得
+async function getLiveChat(live_chat_id) {
   return new Promise(function(resolve) {
     let access_token = localStorage.getItem("access_token")
     let xhr = new XMLHttpRequest()
-    // xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet&liveChatId=razqq6dAieE', true)
-    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet&liveChatId=razqq6dAieE', true)
+    xhr.open('GET', 'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet&liveChatId='+live_chat_id, true)
     
     xhr.setRequestHeader('Authorization', ' Bearer '+access_token)
     xhr.send(encodeHTMLForm())
@@ -362,7 +406,7 @@ async function getLiveChat() {
         console.error(xhr.responseText)
         console.error("チャット情報がをとる許可がありません.")
         resolve(null)
-      } 
+      }
     }
   })
 }
@@ -389,17 +433,28 @@ async function main(tab) {
   
   // 字幕取得
   let subTitleList = await getSubtitles(api_key)
+  let subTitle = ""
   if (subTitleList === null) {
     console.error("字幕の取得に失敗しました.")
     return null
+  } else {
+    // 字幕から1文に作成
+    for(let itr of Object.keys(subTitleList)) {
+      subTitle += subTitleList[itr][0] + "\n"
+    }
+  
+    console.log(subTitle)
   }
-  let subTitle = ""
-  for(let itr of Object.keys(subTitleList)) {
-    subTitle += subTitleList[itr][0] + "\n"
-  }
-  console.log(subTitle)
-  showTags(tab,subTitle)
 
+
+  // コメント取得
+  commentsList = await getComments(api_key,20)
+  let comment = ""
+  for(let itr of Object.keys(commentsList)) {
+    comment += commentsList[itr] + "\n"
+  }
+  console.log(comment)
+  showTags(tab,subTitle+comment)
   // // Youtube Live Chat 取得
   // let liveChatList = await getLiveChat()
   // console.log(liveChatList)
