@@ -256,21 +256,32 @@ async function showTags(tab, str, subTitleList){
 
   // 2つの語句をつなげて検索する
   // TODO 重複なら追加しない
-  let subTitleListConnect = []
-  for(let itr = 0; itr < subTitleList.length-1; itr++) {
-    subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
+  let all_list = []
+  if (keyword_list !== null) {
+    all_list = keyword_list
   }
+  
+  if(subTitleList !== null) {
+    let subTitleListConnect = []
+    for(let itr = 0; itr < subTitleList.length-1; itr++) {
+      subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
+    }
+    all_list = all_list.concat(filterd_merge_count)
 
-  let all_list = keyword_list.concat(filterd_merge_count)
-  for(let itr of Object.keys(all_list)) {
-    // 時間を計算
-    all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
+    for(let itr of Object.keys(all_list)) {
+      // 字幕があれば時間を計算
+      all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
+    }
+  } else {
+    for(let itr of Object.keys(all_list)) {
+      // 字幕がないと時間が計算できない
+      all_list[itr].push(null)
+    }
   }
   console.log(all_list)
-  current_url = await getCurrentURL()
   // タグを表示
   chrome.tabs.executeScript(tab.id, {
-    code: 'let url = ' + JSON.stringify(await getCurrentURL()) + ';\
+    code: 'let currentURL = ' + JSON.stringify(await getCurrentURL()) + ';\
            let tagList = ' + JSON.stringify(all_list)
     }, () => {
     chrome.tabs.executeScript(tab.id, {
@@ -619,8 +630,10 @@ async function main(tab) {
 
   // 認証
   if (await googleIdenfity(client_id, client_secret, redirect_uri, scope, false) === null) {
-    console.error("認証に失敗しました")
-    return null
+    if (await googleIdenfity(client_id, client_secret, redirect_uri, scope, true) === null) {
+      console.error("認証に失敗しました")
+      return null
+    }
   }
 
   // 最終的に食わせる文字列
