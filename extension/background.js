@@ -255,34 +255,23 @@ async function showTags(tab, str, subTitleList){
   }
 
   // 2つの語句をつなげて検索する
+  // TODO 重複なら追加しない
   let subTitleListConnect = []
   for(let itr = 0; itr < subTitleList.length-1; itr++) {
     subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
   }
 
-  // console.log(keyword_list)
   let all_list = keyword_list.concat(filterd_merge_count)
   for(let itr of Object.keys(all_list)) {
+    // 時間を計算
     all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
   }
   console.log(all_list)
-  
-
-  // console.log(toCountDict(wordList_noun))
-  // 旧解析
-  //   let words = ma.getElementsByTagName("word")
-  //   let wordList = []
-  //   for(let itr of Object.keys(words)) {
-  //     l = []
-  //     l.push(words[itr].children[0].innerHTML)
-  //     l.push(words[itr].children[2].innerHTML)
-  //     wordList.push(l)
-  //   }
-  //   console.log(wordList)
-
+  current_url = await getCurrentURL()
   // タグを表示
   chrome.tabs.executeScript(tab.id, {
-    code: 'let keyword = '+JSON.stringify(all_list)
+    code: 'let url = ' + JSON.stringify(await getCurrentURL()) + ';\
+           let tagList = ' + JSON.stringify(all_list)
     }, () => {
     chrome.tabs.executeScript(tab.id, {
       file: "showTags.js",
@@ -613,6 +602,8 @@ async function getLiveChat(live_chat_id) {
 }
 
 async function main(tab) {
+  // URLを保存
+  // localStorage.setItem("current_url",await getCurrentURL())
   // https://console.developers.google.com にて生成
   const client_id = await readFile("key/client_id.txt")
   const client_secret = await readFile("key/client_secret.txt")
