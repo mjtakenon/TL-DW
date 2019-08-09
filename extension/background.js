@@ -63,6 +63,7 @@ function toCountDict(array,W){
   }
   return dict;
 }
+
 var ngram = function(array, n) {
   var i;
   var grams = [];
@@ -75,6 +76,7 @@ var ngram = function(array, n) {
   }
   return grams;
 }
+
 var ngram_exception_words = function(array,ex_word, n) {
   var i;
   var grams = [];
@@ -136,8 +138,33 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
+// 語句が出てくる動画の時間を検索する
+function searchTime(word, subTitleList) {
+  // 2つの語句をつなげたもの
+  let subTitleListConnect = []
+  for(let itr = 0; itr < subTitleList.length-1; itr++) {
+    subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
+  }
+  
+  // 単語でフィルタリング
+  var filterdList = subTitleListConnect.filter(function(element) {
+    return (element[0].indexOf(word) !== -1)
+  });
+
+  // console.log(filterdList)
+
+  if (filterdList === []) { 
+    return null
+  } else {
+    // 時間を秒に変換
+    time = filterdList[0][1].split(".")[0].split(":")
+    return time[0]*3600 + time[1]*60 + time[2]
+  }
+}
+
+
 // タグを生成
-async function showTags(tab, str){
+async function showTags(tab, str, subTitleList){
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
   // キーワード取得
@@ -217,6 +244,8 @@ async function showTags(tab, str){
   //       file: "showTags.js",
   //     })
   //   })
+
+  // searchTime("", subTitleList)
 
 }
 // GoogleのOAuth認証関連
@@ -365,12 +394,12 @@ async function getYoutubeSubtitle(movie_subtitle_id,api_key,access_token,need_tr
 }
 
 // 認証キーを取得・更新
-async function googleIdenfity(client_id, client_secret, redirect_uri, scope) {
+async function googleIdenfity(client_id, client_secret, redirect_uri, scope, forceIdenfity) {
   // 認証キーを取る
   let refresh_token = localStorage.getItem("refresh_token")
   let token_expires_date = new Date(localStorage.getItem("token_expires_date"))
 
-  if (localStorage.getItem("token_expires_date") === null) {
+  if (localStorage.getItem("token_expires_date") === null || forceIdenfity) {
     // コードを取得(拡張機能初使用時)
     code = await getCode(client_id, redirect_uri, scope)
     localStorage.setItem("code_google",code)
@@ -552,7 +581,7 @@ async function main(tab) {
   const api_key = await readFile("key/youtube_api_key.txt")
 
   // 認証
-  if (await googleIdenfity(client_id, client_secret, redirect_uri, scope) === null) {
+  if (await googleIdenfity(client_id, client_secret, redirect_uri, scope, false) === null) {
     console.error("認証に失敗しました")
     return null
   }
@@ -560,6 +589,18 @@ async function main(tab) {
   // 最終的に食わせる文字列
   let str = ""
 
+  // コメント取得
+  let comment = ""
+  commentsList = await getComments(api_key,20)
+  if (commentsList !== null) {
+    for(let itr of Object.keys(commentsList)) {
+      comment += commentsList[itr] + " "
+    }
+    // console.log(comment)
+    comment.replace("\n"," ")
+    comment = await doTranslate(comment) + "\n"
+    str += comment
+  }
 
   // 字幕取得
   let subTitleList = await getSubtitles(api_key)
@@ -577,20 +618,9 @@ async function main(tab) {
     str += subTitle
   }
 
+  searchTime("アナウンサー",subTitleList)
 
-  // コメント取得
-  let comment = ""
-  commentsList = await getComments(api_key,20)
-  if (commentsList !== null) {
-    for(let itr of Object.keys(commentsList)) {
-      comment += commentsList[itr] + " "
-    }
-    // console.log(comment)
-    comment.replace("\n"," ")
-    comment = await doTranslate(comment) + "\n"
-    str += comment
-  }
-  showTags(tab, str)
+  showTags(tab, str, subTitleList)
   // // Youtube Live Chat 取得
   // let liveChatList = await getLiveChat()
   // console.log(liveChatList)
