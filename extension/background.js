@@ -57,9 +57,13 @@ async function getExtensionID() {
 }
 
 function toCountDict(array,W){
-  let dict = {};
+  let dict = [];
   for(let key of array){
-    dict[key] = Math.log(W) * array.filter(function(x){return x==key}).length * Math.log(key.length);
+    let count_word = []
+    count_word.push(key)
+    let count = Math.log(W) * array.filter(function(x){return x==key}).length * Math.log(key.length);
+    count_word.push(count)
+    dict.push(count_word)
   }
   return dict;
 }
@@ -93,7 +97,19 @@ var ngram_exception_words = function(array,ex_word, n) {
   }
   return grams;
 }
-
+function pushTwoDimensionalArray(array1, array2, axis){
+  if(axis != 1) axis = 0;
+  if(axis == 0){  //　縦方向の追加
+    for(var i = 0; i < array2.length; i++){
+      array1.push(array2[i]);
+    }
+  }
+  else{  //　横方向の追加
+    for(var i = 0; i < array1.length; i++){
+      Array.prototype.push.apply(array1[i], array2[i]);
+    }
+  }
+}
 // YahooAPIアクセス関連
 // Yahoo!APIにアクセスしてキーワードを取得
 async function getKeyword(appId,sentence) {
@@ -189,44 +205,38 @@ async function showTags(tab, str, subTitleList){
   let wordList_exception = []
   let wordList_impression_verb = []
   for(let itr of Object.keys(words)) {
-    // l = []
     if(words[itr].children[0].innerHTML == "、" || words[itr].children[0].innerHTML == "。"){
-      // l.push(words[itr].children[0].innerHTML)　いらなかった
     }else{
       if (words[itr].children[2].innerHTML == "名詞"){
-        // l.push(words[itr].children[0].innerHTML)　いらなかった
         wordList_noun.push(words[itr].children[0].innerHTML)
       }else if(words[itr].children[2].innerHTML == "助詞" || words[itr].children[2].innerHTML == "特殊" || words[itr].children[2].innerHTML == "助動詞"){
          wordList_exception.push(words[itr].children[0].innerHTML)
-      } //else if(words[itr].children[2].innerHTML == "感動詞"){
-      //     wordList_impression_verb.push(words[itr].children[0].innerHTML)
-      // }
-      wordList.push(words[itr].children[0].innerHTML)
+      }
+      if(words[itr].children[0].innerHTML !== " " && words[itr].children[0].innerHTML !== "　" && words[itr].children[0].innerHTML !== "\n"){
+        wordList.push(words[itr].children[0].innerHTML)
+      }
     }
   }
   // var merge_count = Object.assign(toCountDict(ngram(wordList_noun,1),1),toCountDict(ngram_exception_words(wordList,wordList_exception,2),2),toCountDict(ngram_exception_words(wordList,wordList_exception,3),3), toCountDict(ngram_exception_words(wordList,wordList_exception,4),4));
   let merge_count = toCountDict(ngram(wordList_noun,1),1);
   const MAX_N_GRAM = 10;
   for (let i = 2; i <= MAX_N_GRAM; i++) {
-    Object.assign(merge_count, toCountDict(ngram_exception_words(wordList,wordList_exception,i),i));
+    pushTwoDimensionalArray(merge_count,toCountDict(ngram_exception_words(wordList,wordList_exception,i),i),0)
   }
-  var keys=[];
-  for(var key in merge_count)keys.push(key);
-  keys.sort((a, b) => merge_count[b] - merge_count[a]);
-  for (let i = 1; i < keys.length; i++) {
+  merge_count.sort((a, b) => b[1] - a[1]);
+  for (let i = 1; i < merge_count.length; i++) {
     for (let j = 0; j < i; j++) {
-      if (keys[j].indexOf(keys[i]) != -1) {
-        keys.splice(i, 1);
+      if (merge_count[j][0].indexOf(merge_count[i][0]) != -1) {
+        merge_count.splice(i, 1);
         i--;
         break;
       }
     }
   }
-  console.log(keys);
-
-
-  time = searchTime("アナウンサー",subTitleList)
-
+  for (let i = merge_count.length-1; i >= 0; --i){
+    merge_count[i][1] = merge_count[i][1] * 100 / merge_count[0][1]
+  }
+  console.log(merge_count)
   // console.log(toCountDict(wordList_noun))
   // 旧解析
   //   let words = ma.getElementsByTagName("word")
