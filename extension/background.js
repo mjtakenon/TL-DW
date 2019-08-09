@@ -268,13 +268,13 @@ async function showTags(tab, str, subTitleList){
   //   console.log(wordList)
 
   // タグを表示
-  // chrome.tabs.executeScript(tab.id, {
-  //   code: 'let keyword = '+JSON.stringify(keyword)
-  //   }, () => {
-  //   chrome.tabs.executeScript(tab.id, {
-  //     file: "showTags.js",
-  //   })
-  // })
+  chrome.tabs.executeScript(tab.id, {
+    code: 'let keyword = '+JSON.stringify(all_list)
+    }, () => {
+    chrome.tabs.executeScript(tab.id, {
+      file: "showTags.js",
+    })
+  })
 
   // searchTime("", subTitleList)
 
