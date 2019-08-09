@@ -232,6 +232,19 @@ async function showTags(tab, str, subTitleList){
   for (let i = merge_count.length-1; i >= 0; --i){
     merge_count[i][1] = merge_count[i][1] * 100 / merge_count[0][1]
   }
+  let threshold = 0.75;
+  merge_count = merge_count.slice(0,150);
+  for(let i = 0; i < merge_count.length; i++){
+    for (let j = i + 1; j < merge_count.length; j++) {
+      if (merge_count[j][0].indexOf(merge_count[i][0]) >= 0) {
+        if(merge_count[i][0].length / merge_count[j][0].length > threshold){
+          merge_count[j][1] = merge_count[j][1] / 4;
+        }
+      }
+    }
+  }
+  merge_count.sort((a, b) => b[1] - a[1]);
+  console.log(merge_count)
   let filterd_merge_count = merge_count.filter(el => {
     return el[1] >= 20;
   })
