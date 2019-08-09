@@ -10,15 +10,35 @@
     <div class="card-content">
       <h1 class="title">TL;DW</h1>
       <h2 class="subtitle">Too Long; Don't Watch</h2>
+      <div class="tabs is-toggle is-fullwidth">
+          <ul>
+            <li class="is-active">
+              <button id="analyze" class="button is-light">
+                <span class="icon is-small"><i class="fas fa-file-signature"></i></span>
+                <span>Analyze</span>
+              </button>
+            </li>
+            <li>
+              <button id="word-cloud" class="button is-light">
+                <span class="icon is-small"><i class="fas fa-cloud"></i></span>
+                <span>Wordcloud</span>
+              </button>
+            </li>
+            <li>
+              <button id="info" class="button is-light">
+                <span class="icon is-small"><i class="fas fa-info"></i></span>
+                <span>Info</span>
+              </button>
+            </li>
+          </ul>
+        </div>
     </div>
-  </div>
-  <div class="card has-background-light">
-    <div class="card-content">
-      <button id="analyze" class="button is-light">Analyze</button>
-      <button id="word-cloud" class="button is-light">Word cloud</button>
-      <button id="log" class="button is-light">Log</button>
-    </div>
+    <div id="cloud" class="is-light"></div>
   </div>
 </body>
+<script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
 <script src="background.js"></script>
+<script src="https://d3js.org/d3.v5.min.js" charset="utf-8"></script>
+<script type="text/javascript" src="d3.layout.cloud.js"></script>
+<script src="js/cloud.js"></script>
 </html>
