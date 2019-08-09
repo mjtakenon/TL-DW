@@ -155,12 +155,8 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
 }
 
 // 語句が出てくる動画の時間を検索する
-function searchTime(word, subTitleList) {
-  // 2つの語句をつなげたもの
-  let subTitleListConnect = []
-  for(let itr = 0; itr < subTitleList.length-1; itr++) {
-    subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
-  }
+function searchTime(word, subTitleListConnect) {
+  
   
   // 単語でフィルタリング
   var filterdList = subTitleListConnect.filter(function(element) {
@@ -169,12 +165,12 @@ function searchTime(word, subTitleList) {
 
   // console.log(filterdList)
 
-  if (filterdList === []) { 
+  if (filterdList.length === 0) { 
     return null
   } else {
     // 時間を秒に変換
     time = filterdList[0][1].split(".")[0].split(":")
-    return time[0]*3600 + time[1]*60 + time[2]
+    return parseInt(time[0])*3600 + parseInt(time[1])*60 + parseInt(time[2])
   }
 }
 
@@ -239,12 +235,26 @@ async function showTags(tab, str, subTitleList){
   let filterd_merge_count = merge_count.filter(el => {
     return el[1] >= 20;
   })
-  console.log(filterd_merge_count)
+  // console.log(filterd_merge_count)
   let keyword_list = []
   for (let itr of Object.keys(keyword)) {
     keyword_list.push([itr, keyword[itr]])
   }
-  console.log(keyword_list) 
+
+  // 2つの語句をつなげて検索する
+  let subTitleListConnect = []
+  for(let itr = 0; itr < subTitleList.length-1; itr++) {
+    subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
+  }
+
+  // console.log(keyword_list)
+  let all_list = keyword_list.concat(filterd_merge_count)
+  for(let itr of Object.keys(all_list)) {
+    all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
+  }
+  console.log(all_list)
+  
+
   // console.log(toCountDict(wordList_noun))
   // 旧解析
   //   let words = ma.getElementsByTagName("word")
