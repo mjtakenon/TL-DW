@@ -154,6 +154,45 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
+// Yahoo!APIよりキーワードを抽出してリストで返却
+async function getKeywordAndParse(str) {
+  // appId取得
+  let appId = await readFile("key/yahoo_api_key.txt")
+  // キーワード取得
+  let keyword = await getKeyword(appId,str)
+  return JSON.parse(keyword.responseText)
+}
+
+// 各解析結果をまとめて1つのリストにする
+async function createTagList(keyword, analizedStringList, subTitleList) {
+  let all_list = []
+  if (keyword !== null) {
+    for (let itr of Object.keys(keyword)) {
+      all_list.push([itr, keyword[itr]])
+    }
+  }
+
+  // 2つの語句をつなげて検索する
+  // TODO 重複なら追加しない
+  if(subTitleList !== null) {
+    let subTitleListConnect = []
+    for(let itr = 0; itr < subTitleList.length-1; itr++) {
+      subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
+    }
+    all_list = all_list.concat(analizedStringList)
+    for(let itr of Object.keys(all_list)) {
+      // 字幕があれば時間を計算
+      all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
+    }
+  } else {
+    for(let itr of Object.keys(all_list)) {
+      // 字幕がないと時間が計算できない
+      all_list[itr].push(null)
+    }
+  }
+  return all_list
+}
+
 // 語句が出てくる動画の時間を検索する
 function searchTime(word, subTitleListConnect) {
   
@@ -239,29 +278,47 @@ async function analizeString(str) {
 
 // タグを生成
 async function showTags(tab, tagList){
-  // タグを表示
-  chrome.tabs.executeScript(tab.id, {
-    code: 'let currentURL = ' + JSON.stringify(await getCurrentURL()) + ';\
-           let tagList = ' + JSON.stringify(tagList)
-    }, () => {
-    chrome.tabs.executeScript(tab.id, {
-      file: "showTags.js",
-    })
-  })
+  // 以前生成されたタグがあったら消しとく
+  chrome.tabs.sendMessage(tab.id, "clearTags");
+  chrome.tabs.sendMessage(tab.id, ["showTags",await getCurrentURL(),tagList]);
+  // // chrome.tabs.executeScript({
+  // //   file: "clearTags.js"
+  // // });
+  // // タグを表示
+  // chrome.tabs.executeScript(tab.id, {
+  //   code: 'let currentURL = ' + JSON.stringify(await getCurrentURL()) + ';\
+  //          let tagList = ' + JSON.stringify(tagList)
+  //   }, () => {
+  //     chrome.tabs.sendMessage(tab.id, "showTags");
+  //   // chrome.tabs.executeScript(tab.id, {
+  //   //   file: "showTags.js",
+  //   // })
+  // })
 }
 
 // タグを読み込み
 async function loadTags(tab) {
   console.log("load tags.")
+  tagList = JSON.parse(localStorage.getItem("prevTagList"))
+  await showTags(tab, tagList)
 }
 
 // ページ遷移の結果同じ動画であればタグを読み込む
 async function checkSamePageAndLoadTags(tab, info) {
-  // ページ読み込み完了時にのみ実行
-  if (info["status"] !== "complete") {
+  // ページ読み込み開始時には全部タグを消す
+  // if (info["status"] === "loading") {
+  //   chrome.tabs.executeScript({
+  //     file: "clearTags.js"
+  //   });
+  //   return
+  //   // どちらでもなければ何もしない
+  // } else if (info["status"] !== "complete") {
+  //   return
+  // }
+  // 読み込み中または読み込み完了ではない更新だったら
+  if (!(info["status"] === "loading" || info["status"] === "complete")) {
     return
   }
-
   let currentURL = await getCurrentURL()
   let currentVideoID = ""
   if (currentURL.indexOf("&") === -1) {
@@ -269,10 +326,30 @@ async function checkSamePageAndLoadTags(tab, info) {
   } else {
     currentVideoID = currentURL.substring(currentURL.indexOf("v=")+2,currentURL.indexOf("&"))
   }
-  localStorage.setItem("prev_vid", currentVideoID)
-  // 同じであればタグ読み込み
-  if (localStorage.getItem("prev_vid") == currentVideoID) {
-    await loadTags(tab)
+  
+  // リロードして同じ動画であれば
+  if (localStorage.getItem("prev_vid") === currentVideoID) {
+    console.log("same movie")
+    // 完了時にタグ読み込み
+    if (info["status"] === "complete") {
+      await loadTags(tab)
+    }
+  // 違う動画であれば
+  } else {
+    console.log("not same movie")
+    // 読み込み中にはタグを全部消す
+    if (info["status"] === "loading") {
+      
+      chrome.tabs.sendMessage(tab.id, "clearAllTags");
+        // chrome.tabs.executeScript({
+        //   // file: "clearAllTags.js"
+        //   file: "clearTags.js"
+        // });
+    // 読み込み完了時に新しいURLをセットしタグを消す
+    } else if (info["status"] === "complete") {
+      localStorage.setItem("prev_vid", currentVideoID)
+      localStorage.removeItem("prevTagList")
+    }
   }
 }
 
@@ -623,7 +700,7 @@ async function main(tab) {
 
   // コメント取得
   let comment = ""
-  commentsList = await getComments(api_key,20)
+  let commentsList = await getComments(api_key,20)
   if (commentsList !== null) {
     for(let itr of Object.keys(commentsList)) {
       comment += commentsList[itr] + " "
@@ -650,52 +727,16 @@ async function main(tab) {
     str += subTitle
   }
 
-  // コメントと字幕の形態素解析
-  analizedStringList = await analizeString(str)
-
-  // Yahoo!のキーワード抽出
-  // appId取得
-  let appId = await readFile("key/yahoo_api_key.txt")
-  // キーワード取得
-  let keyword = await getKeyword(appId,str)
-  keyword = JSON.parse(keyword.responseText)
-  tagList = await createTagList(keyword, analizedStringList, subTitleList)
-  // タグを表示
+  let tagList = await createTagList(await getKeywordAndParse(str) , await analizeString(str), subTitleList)
+  // タグの保存と表示
   console.log(tagList)
+  localStorage.setItem("prevTagList", JSON.stringify(tagList))
   await showTags(tab, tagList)
   // // Youtube Live Chat 取得
   // let liveChatList = await getLiveChat()
   // console.log(liveChatList)
 }
 
-async function createTagList(keyword, analizedStringList, subTitleList) {
-  let all_list = []
-  if (keyword !== null) {
-    for (let itr of Object.keys(keyword)) {
-      all_list.push([itr, keyword[itr]])
-    }
-  }
-
-  // 2つの語句をつなげて検索する
-  // TODO 重複なら追加しない
-  if(subTitleList !== null) {
-    let subTitleListConnect = []
-    for(let itr = 0; itr < subTitleList.length-1; itr++) {
-      subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
-    }
-    all_list = all_list.concat(analizedStringList)
-    for(let itr of Object.keys(all_list)) {
-      // 字幕があれば時間を計算
-      all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
-    }
-  } else {
-    for(let itr of Object.keys(all_list)) {
-      // 字幕がないと時間が計算できない
-      all_list[itr].push(null)
-    }
-  }
-  return all_list
-}
 //
 chrome.browserAction.onClicked.addListener(function(tab) {
   console.log("chrome.browserAction.onClicked")
@@ -707,10 +748,7 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 
 // 別動画に遷移したときに，表示していたタグを削除
 chrome.tabs.onUpdated.addListener((tabid, info, tab) => {
+  // console.log(info)
   // ページ読み込み完了時に前のURLと同じであればタグをロードする
   checkSamePageAndLoadTags(tab, info)
-
-  chrome.tabs.executeScript({
-    file: "clearTags.js"
-  });
 });
