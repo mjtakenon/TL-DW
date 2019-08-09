@@ -184,12 +184,12 @@ async function showTags(tab, str, subTitleList){
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
   // キーワード取得
-  let res = await getKeyword(appId,str)
-  res = JSON.parse(res.responseText)
+  let keyword = await getKeyword(appId,str)
+  keyword = JSON.parse(keyword.responseText)
 
   // タグを表示
   // chrome.tabs.executeScript(tab.id, {
-  //   code: 'let res = '+JSON.stringify(res)
+  //   code: 'let keyword = '+JSON.stringify(keyword)
   // }, () => {
   //   chrome.tabs.executeScript(tab.id, {
   //     file: "showTags.js",
@@ -236,7 +236,15 @@ async function showTags(tab, str, subTitleList){
   for (let i = merge_count.length-1; i >= 0; --i){
     merge_count[i][1] = merge_count[i][1] * 100 / merge_count[0][1]
   }
-  console.log(merge_count)
+  let filterd_merge_count = merge_count.filter(el => {
+    return el[1] >= 20;
+  })
+  console.log(filterd_merge_count)
+  let keyword_list = []
+  for (let itr of Object.keys(keyword)) {
+    keyword_list.push([itr, keyword[itr]])
+  }
+  console.log(keyword_list) 
   // console.log(toCountDict(wordList_noun))
   // 旧解析
   //   let words = ma.getElementsByTagName("word")
@@ -251,7 +259,7 @@ async function showTags(tab, str, subTitleList){
 
   // タグを表示
   // chrome.tabs.executeScript(tab.id, {
-  //   code: 'let res = '+JSON.stringify(res)
+  //   code: 'let keyword = '+JSON.stringify(keyword)
   //   }, () => {
   //   chrome.tabs.executeScript(tab.id, {
   //     file: "showTags.js",
@@ -260,7 +268,7 @@ async function showTags(tab, str, subTitleList){
 
   // searchTime("", subTitleList)
 
-  // console.log(res)
+  // console.log(keyword)
   
 }
 // GoogleのOAuth認証関連
