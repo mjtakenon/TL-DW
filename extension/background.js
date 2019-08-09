@@ -174,23 +174,9 @@ function searchTime(word, subTitleListConnect) {
   }
 }
 
-
-// タグを生成
-async function showTags(tab, str, subTitleList){
+async function analizeString(str) {
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
-  // キーワード取得
-  let keyword = await getKeyword(appId,str)
-  keyword = JSON.parse(keyword.responseText)
-
-  // タグを表示
-  // chrome.tabs.executeScript(tab.id, {
-  //   code: 'let keyword = '+JSON.stringify(keyword)
-  // }, () => {
-  //   chrome.tabs.executeScript(tab.id, {
-  //     file: "showTags.js",
-  //   })
-  // })
 
   let ma = await getMorphologicalAnalysisResults(appId,str)
   let parser = new DOMParser()
@@ -248,52 +234,48 @@ async function showTags(tab, str, subTitleList){
   let filterd_merge_count = merge_count.filter(el => {
     return el[1] >= 20;
   })
-  // console.log(filterd_merge_count)
-  let keyword_list = []
-  for (let itr of Object.keys(keyword)) {
-    keyword_list.push([itr, keyword[itr]])
-  }
+  return filterd_merge_count
+}
 
-  // 2つの語句をつなげて検索する
-  // TODO 重複なら追加しない
-  let all_list = []
-  if (keyword_list !== null) {
-    all_list = keyword_list
-  }
-  
-  if(subTitleList !== null) {
-    let subTitleListConnect = []
-    for(let itr = 0; itr < subTitleList.length-1; itr++) {
-      subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
-    }
-    all_list = all_list.concat(filterd_merge_count)
-
-    for(let itr of Object.keys(all_list)) {
-      // 字幕があれば時間を計算
-      all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
-    }
-  } else {
-    for(let itr of Object.keys(all_list)) {
-      // 字幕がないと時間が計算できない
-      all_list[itr].push(null)
-    }
-  }
-  console.log(all_list)
+// タグを生成
+async function showTags(tab, tagList){
   // タグを表示
   chrome.tabs.executeScript(tab.id, {
     code: 'let currentURL = ' + JSON.stringify(await getCurrentURL()) + ';\
-           let tagList = ' + JSON.stringify(all_list)
+           let tagList = ' + JSON.stringify(tagList)
     }, () => {
     chrome.tabs.executeScript(tab.id, {
       file: "showTags.js",
     })
   })
-
-  // searchTime("", subTitleList)
-
-  // console.log(keyword)
-  
 }
+
+// タグを読み込み
+async function loadTags(tab) {
+  console.log("load tags.")
+}
+
+// ページ遷移の結果同じ動画であればタグを読み込む
+async function checkSamePageAndLoadTags(tab, info) {
+  // ページ読み込み完了時にのみ実行
+  if (info["status"] !== "complete") {
+    return
+  }
+
+  let currentURL = await getCurrentURL()
+  let currentVideoID = ""
+  if (currentURL.indexOf("&") === -1) {
+    currentVideoID = currentURL.substring(currentURL.indexOf("v=")+2)
+  } else {
+    currentVideoID = currentURL.substring(currentURL.indexOf("v=")+2,currentURL.indexOf("&"))
+  }
+  localStorage.setItem("prev_vid", currentVideoID)
+  // 同じであればタグ読み込み
+  if (localStorage.getItem("prev_vid") == currentVideoID) {
+    await loadTags(tab)
+  }
+}
+
 // GoogleのOAuth認証関連
 // https://himakan.net/websites/how_to_google_oauth
 // https://qiita.com/tkt989/items/8c0e316dcf8345efd0fb
@@ -668,10 +650,51 @@ async function main(tab) {
     str += subTitle
   }
 
-  showTags(tab, str, subTitleList)
+  // コメントと字幕の形態素解析
+  analizedStringList = await analizeString(str)
+
+  // Yahoo!のキーワード抽出
+  // appId取得
+  let appId = await readFile("key/yahoo_api_key.txt")
+  // キーワード取得
+  let keyword = await getKeyword(appId,str)
+  keyword = JSON.parse(keyword.responseText)
+  tagList = await createTagList(keyword, analizedStringList, subTitleList)
+  // タグを表示
+  console.log(tagList)
+  await showTags(tab, tagList)
   // // Youtube Live Chat 取得
   // let liveChatList = await getLiveChat()
   // console.log(liveChatList)
+}
+
+async function createTagList(keyword, analizedStringList, subTitleList) {
+  let all_list = []
+  if (keyword !== null) {
+    for (let itr of Object.keys(keyword)) {
+      all_list.push([itr, keyword[itr]])
+    }
+  }
+
+  // 2つの語句をつなげて検索する
+  // TODO 重複なら追加しない
+  if(subTitleList !== null) {
+    let subTitleListConnect = []
+    for(let itr = 0; itr < subTitleList.length-1; itr++) {
+      subTitleListConnect.push([subTitleList[itr][0] + subTitleList[itr+1][0],subTitleList[itr][1],itr])
+    }
+    all_list = all_list.concat(analizedStringList)
+    for(let itr of Object.keys(all_list)) {
+      // 字幕があれば時間を計算
+      all_list[itr].push(searchTime(all_list[itr][0], subTitleListConnect))
+    }
+  } else {
+    for(let itr of Object.keys(all_list)) {
+      // 字幕がないと時間が計算できない
+      all_list[itr].push(null)
+    }
+  }
+  return all_list
 }
 //
 chrome.browserAction.onClicked.addListener(function(tab) {
@@ -681,10 +704,13 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   return;
 })
 
+
 // 別動画に遷移したときに，表示していたタグを削除
 chrome.tabs.onUpdated.addListener((tabid, info, tab) => {
+  // ページ読み込み完了時に前のURLと同じであればタグをロードする
+  checkSamePageAndLoadTags(tab, info)
+
   chrome.tabs.executeScript({
     file: "clearTags.js"
   });
 });
-
