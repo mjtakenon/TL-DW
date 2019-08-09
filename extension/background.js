@@ -1,4 +1,5 @@
 
+
 // HTMLフォームの形式にデータを変換する
 // https://so-zou.jp/web-app/tech/programming/javascript/ajax/post.htm
 function encodeHTMLForm( data )
@@ -55,6 +56,42 @@ async function getExtensionID() {
   })
 }
 
+function toCountDict(array,W){
+  let dict = {};
+  for(let key of array){
+    dict[key] = Math.log(W) * array.filter(function(x){return x==key}).length * Math.log(key.length);
+  }
+  return dict;
+}
+var ngram = function(array, n) {
+  var i;
+  var grams = [];
+  for(i = 0; i <= array.length-n; i++) {
+    var n_text = array[i];
+    for (j = 1; j < n; j++){
+      n_text += array[i + j]
+    }
+    grams.push(n_text)
+  }
+  return grams;
+}
+var ngram_exception_words = function(array,ex_word, n) {
+  var i;
+  var grams = [];
+  for(i = 0; i <= array.length-n; i++) {
+    var n_text = array[i];
+    if (ex_word.indexOf(array[i]) >= 0 || ex_word.indexOf(array[i + n - 1]) >= 0){
+      continue
+    }else{
+      for (j = 1; j < n; j++){
+        n_text += array[i + j]
+      }
+    }
+    grams.push(n_text)
+  }
+  return grams;
+}
+
 // YahooAPIアクセス関連
 // Yahoo!APIにアクセスしてキーワードを取得
 async function getKeyword(appId,sentence) {
@@ -99,6 +136,41 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
+// // タグを生成
+// async function showTags(tab, str){
+//   // appId取得
+//   let appId = await readFile("key/yahoo_api_key.txt")
+//   console.log(str)
+//   // キーワード取得
+//   let res = await getKeyword(appId,str)
+//   res = JSON.parse(res.responseText)
+//   // console.log(res)
+//   // タグを表示
+//   localStorage.setItem("res", res)
+
+//   chrome.tabs.executeScript(tab.id, {
+//     code: 'let res = '+JSON.stringify(res)
+//   }, () => {
+//     chrome.tabs.executeScript(tab.id, {
+//       file: "showTags.js",
+//     })
+//   })
+
+//   let ma = await getMorphologicalAnalysisResults(appId,str)
+//   let parser = new DOMParser()
+//   ma = parser.parseFromString(ma.responseText, "text/xml")
+
+//   let words = ma.getElementsByTagName("word")
+//   let wordList = []
+//   for(let itr of Object.keys(words)) {
+//     l = []
+//     l.push(words[itr].children[0].innerHTML)
+//     l.push(words[itr].children[2].innerHTML)
+//     wordList.push(l)
+//   }
+//   console.log(wordList)
+// }
+
 // タグを生成
 async function showTags(tab, str){
   // appId取得
@@ -108,9 +180,8 @@ async function showTags(tab, str){
   let res = await getKeyword(appId,str)
   res = JSON.parse(res.responseText)
   // console.log(res)
+  
   // タグを表示
-  localStorage.setItem("res", res)
-
   chrome.tabs.executeScript(tab.id, {
     code: 'let res = '+JSON.stringify(res)
   }, () => {
@@ -122,18 +193,68 @@ async function showTags(tab, str){
   let ma = await getMorphologicalAnalysisResults(appId,str)
   let parser = new DOMParser()
   ma = parser.parseFromString(ma.responseText, "text/xml")
-
   let words = ma.getElementsByTagName("word")
   let wordList = []
+  let wordList_noun = []
+  let wordList_exception = []
+  let wordList_impression_verb = []
   for(let itr of Object.keys(words)) {
-    l = []
-    l.push(words[itr].children[0].innerHTML)
-    l.push(words[itr].children[2].innerHTML)
-    wordList.push(l)
+    // l = []
+    if(words[itr].children[0].innerHTML == "、" || words[itr].children[0].innerHTML == "。"){
+      // l.push(words[itr].children[0].innerHTML)　いらなかった
+    }else{
+      if (words[itr].children[2].innerHTML == "名詞"){
+        // l.push(words[itr].children[0].innerHTML)　いらなかった
+        wordList_noun.push(words[itr].children[0].innerHTML)
+      }else if(words[itr].children[2].innerHTML == "助詞" || words[itr].children[2].innerHTML == "特殊" || words[itr].children[2].innerHTML == "助動詞"){
+         wordList_exception.push(words[itr].children[0].innerHTML)
+      } //else if(words[itr].children[2].innerHTML == "感動詞"){
+      //     wordList_impression_verb.push(words[itr].children[0].innerHTML)
+      // }
+      wordList.push(words[itr].children[0].innerHTML)
+    }
   }
-  console.log(wordList)
-}
+  // var merge_count = Object.assign(toCountDict(ngram(wordList_noun,1),1),toCountDict(ngram_exception_words(wordList,wordList_exception,2),2),toCountDict(ngram_exception_words(wordList,wordList_exception,3),3), toCountDict(ngram_exception_words(wordList,wordList_exception,4),4));
+  let merge_count = toCountDict(ngram(wordList_noun,1),1);
+  const MAX_N_GRAM = 10;
+  for (let i = 2; i <= MAX_N_GRAM; i++) {
+    Object.assign(merge_count, toCountDict(ngram_exception_words(wordList,wordList_exception,i),i));
+  }
+  var keys=[];
+  for(var key in merge_count)keys.push(key);
+  keys.sort((a, b) => merge_count[b] - merge_count[a]);
+  for (let i = 1; i < keys.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (keys[j].indexOf(keys[i]) != -1) {
+        keys.splice(i, 1);
+        i--;
+        break;
+      }
+    }
+  }
+  console.log(keys);
+  // console.log(toCountDict(wordList_noun))
+  // 旧解析
+  //   let words = ma.getElementsByTagName("word")
+  //   let wordList = []
+  //   for(let itr of Object.keys(words)) {
+  //     l = []
+  //     l.push(words[itr].children[0].innerHTML)
+  //     l.push(words[itr].children[2].innerHTML)
+  //     wordList.push(l)
+  //   }
+  //   console.log(wordList)
 
+  // タグを表示
+  //   chrome.tabs.executeScript(tab.id, {
+  //     code: 'let res = '+JSON.stringify(res)
+  //   }, () => {
+  //     chrome.tabs.executeScript(tab.id, {
+  //       file: "showTags.js",
+  //     })
+  //   })
+
+}
 // GoogleのOAuth認証関連
 // https://himakan.net/websites/how_to_google_oauth
 // https://qiita.com/tkt989/items/8c0e316dcf8345efd0fb
@@ -525,3 +646,4 @@ chrome.tabs.onUpdated.addListener((tabid, info, tab) => {
     file: "clearTags.js"
   });
 });
+
