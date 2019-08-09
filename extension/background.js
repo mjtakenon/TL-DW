@@ -170,16 +170,15 @@ async function showTags(tab, str, subTitleList){
   // キーワード取得
   let res = await getKeyword(appId,str)
   res = JSON.parse(res.responseText)
-  // console.log(res)
-  
+
   // タグを表示
-  chrome.tabs.executeScript(tab.id, {
-    code: 'let res = '+JSON.stringify(res)
-  }, () => {
-    chrome.tabs.executeScript(tab.id, {
-      file: "showTags.js",
-    })
-  })
+  // chrome.tabs.executeScript(tab.id, {
+  //   code: 'let res = '+JSON.stringify(res)
+  // }, () => {
+  //   chrome.tabs.executeScript(tab.id, {
+  //     file: "showTags.js",
+  //   })
+  // })
 
   let ma = await getMorphologicalAnalysisResults(appId,str)
   let parser = new DOMParser()
@@ -224,6 +223,10 @@ async function showTags(tab, str, subTitleList){
     }
   }
   console.log(keys);
+
+
+  time = searchTime("アナウンサー",subTitleList)
+
   // console.log(toCountDict(wordList_noun))
   // 旧解析
   //   let words = ma.getElementsByTagName("word")
@@ -237,16 +240,18 @@ async function showTags(tab, str, subTitleList){
   //   console.log(wordList)
 
   // タグを表示
-  //   chrome.tabs.executeScript(tab.id, {
-  //     code: 'let res = '+JSON.stringify(res)
+  // chrome.tabs.executeScript(tab.id, {
+  //   code: 'let res = '+JSON.stringify(res)
   //   }, () => {
-  //     chrome.tabs.executeScript(tab.id, {
-  //       file: "showTags.js",
-  //     })
+  //   chrome.tabs.executeScript(tab.id, {
+  //     file: "showTags.js",
   //   })
+  // })
 
   // searchTime("", subTitleList)
 
+  // console.log(res)
+  
 }
 // GoogleのOAuth認証関連
 // https://himakan.net/websites/how_to_google_oauth
@@ -617,8 +622,6 @@ async function main(tab) {
     subTitle.replace("\n"," ")
     str += subTitle
   }
-
-  searchTime("アナウンサー",subTitleList)
 
   showTags(tab, str, subTitleList)
   // // Youtube Live Chat 取得
