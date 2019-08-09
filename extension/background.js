@@ -136,46 +136,10 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
   })
 }
 
-// // タグを生成
-// async function showTags(tab, str){
-//   // appId取得
-//   let appId = await readFile("key/yahoo_api_key.txt")
-//   console.log(str)
-//   // キーワード取得
-//   let res = await getKeyword(appId,str)
-//   res = JSON.parse(res.responseText)
-//   // console.log(res)
-//   // タグを表示
-//   localStorage.setItem("res", res)
-
-//   chrome.tabs.executeScript(tab.id, {
-//     code: 'let res = '+JSON.stringify(res)
-//   }, () => {
-//     chrome.tabs.executeScript(tab.id, {
-//       file: "showTags.js",
-//     })
-//   })
-
-//   let ma = await getMorphologicalAnalysisResults(appId,str)
-//   let parser = new DOMParser()
-//   ma = parser.parseFromString(ma.responseText, "text/xml")
-
-//   let words = ma.getElementsByTagName("word")
-//   let wordList = []
-//   for(let itr of Object.keys(words)) {
-//     l = []
-//     l.push(words[itr].children[0].innerHTML)
-//     l.push(words[itr].children[2].innerHTML)
-//     wordList.push(l)
-//   }
-//   console.log(wordList)
-// }
-
 // タグを生成
 async function showTags(tab, str){
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
-  console.log(str.replace("\n"," "))
   // キーワード取得
   let res = await getKeyword(appId,str)
   res = JSON.parse(res.responseText)
@@ -307,8 +271,7 @@ async function refreshToken(refresh_token, client_id, client_secret) {
   return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
     xhr.open('POST', 'https://www.googleapis.com/oauth2/v4/token', true)
-    let data = {
-                  refresh_token: refresh_token,
+    let data = {  refresh_token: refresh_token,
                   client_id: client_id,
                   client_secret: client_secret,
                   grant_type: "refresh_token" }
@@ -387,7 +350,7 @@ async function getYoutubeSubtitle(movie_subtitle_id,api_key,access_token,need_tr
     xhr.send(encodeHTMLForm())
     xhr.onreadystatechange = function() {
       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
-        console.log(xhr)
+        // console.log(xhr)
         let parser = new DOMParser()
         xhr = parser.parseFromString(xhr.responseText, "text/xml")
         resolve(xhr)
@@ -487,6 +450,7 @@ async function getSubtitles(api_key) {
       l.push(outerHTML.substring(outerHTML.indexOf("end=")+5, outerHTML.indexOf("end=")+17))
       subTitleList.push(l)
     }
+    console.log(subTitleList)
   }
   return subTitleList
 }
@@ -535,7 +499,6 @@ async function doTranslate(str) {
     xhr.send(encodeHTMLForm(data))
     xhr.onreadystatechange = function() {
       if(xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
-        console.log(xhr.responseText)
         // let parsedXhr = JSON.parse(xhr.responseText)
         resolve(xhr.responseText)
       }
