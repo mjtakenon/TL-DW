@@ -57,9 +57,12 @@ async function getExtensionID() {
 }
 
 function toCountDict(array,W){
-  let dict = {};
+  let dict = [];
   for(let key of array){
-    dict[key] = Math.log(W) * array.filter(function(x){return x==key}).length * Math.log(key.length);
+    let count_word = []
+    count_word.push(key)
+    count_word.push(Math.log(W) * array.filter(function(x){return x==key}).length * Math.log(key.length));
+    dict.push(count_word)
   }
   return dict;
 }
@@ -91,7 +94,19 @@ var ngram_exception_words = function(array,ex_word, n) {
   }
   return grams;
 }
-
+function pushTwoDimensionalArray(array1, array2, axis){
+  if(axis != 1) axis = 0;
+  if(axis == 0){  //　縦方向の追加
+    for(var i = 0; i < array2.length; i++){
+      array1.push(array2[i]);
+    }
+  }
+  else{  //　横方向の追加
+    for(var i = 0; i < array1.length; i++){
+      Array.prototype.push.apply(array1[i], array2[i]);
+    }
+  }
+}
 // YahooAPIアクセス関連
 // Yahoo!APIにアクセスしてキーワードを取得
 async function getKeyword(appId,sentence) {
@@ -182,21 +197,21 @@ async function showTags(tab, str){
   let merge_count = toCountDict(ngram(wordList_noun,1),1);
   const MAX_N_GRAM = 10;
   for (let i = 2; i <= MAX_N_GRAM; i++) {
-    Object.assign(merge_count, toCountDict(ngram_exception_words(wordList,wordList_exception,i),i));
+    pushTwoDimensionalArray(merge_count,toCountDict(ngram_exception_words(wordList,wordList_exception,i),i),0)
   }
-  var keys=[];
-  for(var key in merge_count)keys.push(key);
-  keys.sort((a, b) => merge_count[b] - merge_count[a]);
-  for (let i = 1; i < keys.length; i++) {
-    for (let j = 0; j < i; j++) {
-      if (keys[j].indexOf(keys[i]) != -1) {
-        keys.splice(i, 1);
-        i--;
-        break;
-      }
-    }
-  }
-  console.log(keys);
+  // var keys=[];
+  // for(var key in merge_count)keys.push(key);
+  // keys.sort((a, b) => merge_count[b] - merge_count[a]);
+  // for (let i = 1; i < keys.length; i++) {
+  //   for (let j = 0; j < i; j++) {
+  //     if (keys[j].indexOf(keys[i]) != -1) {
+  //       keys.splice(i, 1);
+  //       i--;
+  //       break;
+  //     }
+  //   }
+  // }
+
   // console.log(toCountDict(wordList_noun))
   // 旧解析
   //   let words = ma.getElementsByTagName("word")
@@ -210,13 +225,13 @@ async function showTags(tab, str){
   //   console.log(wordList)
 
   // タグを表示
-  //   chrome.tabs.executeScript(tab.id, {
-  //     code: 'let res = '+JSON.stringify(res)
-  //   }, () => {
-  //     chrome.tabs.executeScript(tab.id, {
-  //       file: "showTags.js",
-  //     })
-  //   })
+    chrome.tabs.executeScript(tab.id, {
+      code: 'let res = '+JSON.stringify(merge_count)
+    }, () => {
+      chrome.tabs.executeScript(tab.id, {
+        file: "showTags.js",
+      })
+    })
 
 }
 // GoogleのOAuth認証関連
