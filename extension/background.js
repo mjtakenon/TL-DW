@@ -175,7 +175,7 @@ async function getMorphologicalAnalysisResults(appId,sentence) {
 async function showTags(tab, str){
   // appId取得
   let appId = await readFile("key/yahoo_api_key.txt")
-  console.log(str)
+  console.log(str.replace("\n"," "))
   // キーワード取得
   let res = await getKeyword(appId,str)
   res = JSON.parse(res.responseText)
@@ -610,7 +610,7 @@ async function main(tab) {
       subTitle += subTitleList[itr][0] + "\n"
     }
     // console.log(subTitle)
-    subTitle.replace(["\r","\n"]," ")
+    subTitle.replace("\n"," ")
     str += subTitle
   }
 
@@ -623,7 +623,7 @@ async function main(tab) {
       comment += commentsList[itr] + " "
     }
     // console.log(comment)
-    comment.replace(["\r","\n"]," ")
+    comment.replace("\n"," ")
     comment = await doTranslate(comment) + "\n"
     str += comment
   }
