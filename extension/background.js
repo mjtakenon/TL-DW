@@ -738,13 +738,25 @@ async function main(tab) {
 }
 
 //
-chrome.browserAction.onClicked.addListener(function(tab) {
-  console.log("chrome.browserAction.onClicked")
-  // addListenerをawaitにできないのでこれで代用
-  main(tab)
-  return;
-})
+// chrome.browserAction.onClicked.addListener(function(tab) {
+//   console.log("chrome.browserAction.onClicked")
+//   // addListenerをawaitにできないのでこれで代用
+//   main(tab)
+//   return
+// })
+function onClickedAnalyze() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    main(tabs[0])
+  })
+}
 
+chrome.runtime.onMessage.addListener(
+  function (request, sender, sendResponse) {
+    console.log(request)
+    // main(tab)
+    return
+  }
+)
 
 // 別動画に遷移したときに，表示していたタグを削除
 chrome.tabs.onUpdated.addListener((tabid, info, tab) => {
@@ -752,3 +764,7 @@ chrome.tabs.onUpdated.addListener((tabid, info, tab) => {
   // ページ読み込み完了時に前のURLと同じであればタグをロードする
   checkSamePageAndLoadTags(tab, info)
 });
+
+document.getElementById('analyze').addEventListener('click', onClickedAnalyze)
+document.getElementById('word-cloud').addEventListener('click', clickedWordCloud)
+document.getElementById('log').addEventListener('click', clickedLog)
