@@ -195,8 +195,8 @@ async function createTagList(keyword, analizedStringList, subTitleList) {
 
 // 語句が出てくる動画の時間を検索する
 function searchTime(word, subTitleListConnect) {
-  
-  
+
+
   // 単語でフィルタリング
   var filterdList = subTitleListConnect.filter(function(element) {
     return (element[0].indexOf(word) !== -1)
@@ -204,7 +204,7 @@ function searchTime(word, subTitleListConnect) {
 
   // console.log(filterdList)
 
-  if (filterdList.length === 0) { 
+  if (filterdList.length === 0) {
     return null
   } else {
     // 時間を秒に変換
@@ -331,7 +331,7 @@ async function checkSamePageAndLoadTags(tab, info) {
   } else {
     currentVideoID = currentURL.substring(currentURL.indexOf("v=")+2,currentURL.indexOf("&"))
   }
-  
+
   // リロードして同じ動画であれば
   if (localStorage.getItem("prev_vid") === currentVideoID) {
     console.log("same movie")
@@ -344,7 +344,7 @@ async function checkSamePageAndLoadTags(tab, info) {
     console.log("not same movie")
     // 読み込み中にはタグを全部消す
     if (info["status"] === "loading") {
-      
+
       chrome.tabs.sendMessage(tab.id, "clearAllTags");
         // chrome.tabs.executeScript({
         //   // file: "clearAllTags.js"
@@ -563,7 +563,7 @@ async function getSubtitles(api_key) {
     return null
   }
   const movie_subtitle_info = await getYoutubeSubtitleID(video_id, api_key)
-  if (movie_subtitle_info === null) { 
+  if (movie_subtitle_info === null) {
     console.error("movie_subtitle_idが取得できません.")
     return null
   }
@@ -604,7 +604,7 @@ async function getComments(api_key,max_results) {
     return new Promise(function(resolve) {
     let xhr = new XMLHttpRequest()
     xhr.open('GET', 'https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&fields=items/snippet/topLevelComment/snippet/textOriginal&videoId='+video_id+'&key='+api_key+'&maxResults='+max_results+'&order=relevance', true)
-    
+
     xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded')
     xhr.send(encodeHTMLForm())
     xhr.onreadystatechange = function() {
@@ -826,6 +826,9 @@ function clickedWordCloud() {
         .text(function(d) { return d.text; });
   }
 }
-document.getElementById('analyze').addEventListener('click', onClickedAnalyze)
-document.getElementById('word-cloud').addEventListener('click', clickedWordCloud)
-document.getElementById('info').addEventListener('click', clickedInfo)
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('analyze').addEventListener('click', onClickedAnalyze);
+  document.getElementById('word-cloud').addEventListener('click', clickedWordCloud);
+  // document.getElementById('info').addEventListener('click', clickedInfo);
+});
